@@ -9,6 +9,7 @@ use panic_halt as _;
 use panic_semihosting as _;
 
 use rib_board as bsp;
+// use samd10_bare as bsp;
 use bsp::hal;
 use bsp::pac;
 

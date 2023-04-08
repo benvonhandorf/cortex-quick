@@ -9,10 +9,13 @@ version = "0.1.0"
 [package.metadata]
 chip = "ATSAMD10D13AM"
 
+[dependencies.panic-semihosting]
+version = "0.6"
+optional = true
+
 [dependencies]
 cortex-m = "0.7"
 panic-halt = "0.2"
-panic-semihosting = "0.6"
 panic-probe = "0.3"
 rtt-target = { version = "0.3.0", features = ["cortex-m"] }
 
@@ -20,14 +23,15 @@ cortex-m-rt = "0.7"
 cortex-m-semihosting = "0.5.0"
 
 atsamd-hal = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsamd10d" }
+samd10_bare = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsamd10d" }
+
 
 [features]
-default = ["rt", "atsamd-hal/samd10d"]
-rt = [ "atsamd-hal/samd10d-rt"]
+default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt"]
 unproven = ["atsamd-hal/unproven"]
 
-rib_v0 = ["rt"]
-rib_v1 = ["rt"]
+rib_v0 = []
+rib_v1 = []
 
 
 # Uncomment for the panic example.

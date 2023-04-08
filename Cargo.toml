@@ -1,0 +1,55 @@
+[package]
+authors = ["Ben Von Handorf <ben@skyironstudio.com>"]
+edition = "2018"
+readme = "README.md"
+name = "cortex-quick"
+version = "0.1.0"
+
+# for cargo flash
+[package.metadata]
+chip = "ATSAMD10D13AM"
+
+[dependencies]
+cortex-m = "0.7"
+panic-halt = "0.2"
+panic-semihosting = "0.6"
+panic-probe = "0.3"
+rtt-target = { version = "0.3.0", features = ["cortex-m"] }
+
+cortex-m-rt = "0.7"
+cortex-m-semihosting = "0.5.0"
+
+atsamd-hal = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsamd10d" }
+
+[features]
+default = ["rt", "atsamd-hal/samd10d"]
+rt = [ "atsamd-hal/samd10d-rt"]
+unproven = ["atsamd-hal/unproven"]
+
+rib_v0 = ["rt"]
+rib_v1 = ["rt"]
+
+
+# Uncomment for the panic example.
+# panic-itm = "0.4.1"
+
+# Uncomment for the allocator example.
+# alloc-cortex-m = "0.4.0"
+
+# Uncomment for the device example.
+# Update `memory.x`, set target to `thumbv7em-none-eabihf` in `.cargo/config`,
+# and then use `cargo build --examples device` to build it.
+# [dependencies.stm32f3]
+# features = ["stm32f303", "rt"]
+# version = "0.7.1"
+
+# this lets you use `cargo fix`!
+[[bin]]
+name = "cortex-quick"
+test = false
+bench = false
+
+[profile.release]
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations

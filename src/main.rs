@@ -2,6 +2,7 @@
 #![no_main]
 
 mod rib_board;
+mod led_matrix;
 
 #[cfg(not(feature = "use_semihosting"))]
 use panic_halt as _;
@@ -31,8 +32,8 @@ fn main() -> ! {
     );
     let pins = bsp::Pins::new(peripherals.PORT);
     let mut matrix_a = pins.matrix_a.into_push_pull_output();
-    let mut matrix_b = pins.matrix_b.into_push_pull_output();
-    matrix_b.set_low().unwrap();
+    let mut matrix_c = pins.matrix_c.into_push_pull_output();
+    matrix_c.set_low().unwrap();
     let mut delay = Delay::new(core.SYST, &mut clocks);
     loop {
         delay.delay_ms(200u8);

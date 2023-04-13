@@ -1,0 +1,6 @@
+[package]
+authors = ["Ben Von Handorf <ben@skyironstudio.com>"]
+edition = "2018"
+readme = "README.md"
+name = "led_matrix"
+version = "0.1.0"

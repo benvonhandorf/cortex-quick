@@ -2,7 +2,8 @@
 #![no_main]
 
 mod rib_board;
-mod led_matrix;
+
+use led_matrix;
 
 #[cfg(not(feature = "use_semihosting"))]
 use panic_halt as _;

@@ -1,6 +1,8 @@
 #![cfg_attr(not(test), no_std)]
 
 use core::result::Result;
+use core::result::Result::*;
+
 
 pub enum PinState {
     TriState,
@@ -8,29 +10,39 @@ pub enum PinState {
     Low
 }
 
+pub struct PinDefinition {
+    pin_id: u32
+}
+
 pub trait MatrixPinDriver {
-    fn set_mode(ps: PinState);
+    fn set_mode(&self, ps: PinState);
 }
 
 pub struct LedMatrixDefinition {
-    pin_a: MatrixPinDriver,
-    pin_b: MatrixPinDriver,
-    pin_c: MatrixPinDriver,
-    pin_d: MatrixPinDriver,
-    pin_e: MatrixPinDriver,
+    // pin_a: &'static T,
+    // pin_b: &'static T,
+    // pin_c: &'static T,
+    // pin_d: &'static T,
+    // pin_e: &'static T,
     pin_state: [u8; 20],
     driving_cycle: u8,
     driving_pin: MatrixPin,
 }
+
+#[derive(Debug)]
+pub enum MatrixError {
+    Err
+}
+
 pub trait LedMatrix {
     type Error: core::fmt::Debug;
 
     fn new(
-        matrix_a: impl MatrixPinDriver,
-        matrix_b: impl MatrixPinDriver,
-        matrix_c: impl MatrixPinDriver,
-        matrix_d: impl MatrixPinDriver,
-        matrix_e: impl MatrixPinDriver,
+        // matrix_a: &T,
+        // matrix_b: &T,
+        // matrix_c: &T,
+        // matrix_d: &T,
+        // matrix_e: &T,
     ) -> Result<LedMatrixDefinition, Self::Error>;
 
     fn set_value(&mut self, led: u8, value: u8);
@@ -40,6 +52,7 @@ pub trait LedMatrix {
     fn step(&mut self);
 }
 
+#[derive(PartialEq,Debug)]
 enum MatrixPin {
     PinA,
     PinB,
@@ -48,13 +61,12 @@ enum MatrixPin {
     PinE,
 }
 
-
 struct Cycle {
     duration: u8, //Duration of this phase in ticks
     value: u8, //Value to check for
 }
 
-const cycles: [Cycle] = [
+const cycles: [Cycle; 4] = [
     Cycle {
         duration: 1,
         value: 10,
@@ -73,7 +85,7 @@ const cycles: [Cycle] = [
     },
 ];
 
-const led_pin_drives: [(MatrixPin, MatrixPin)] = [
+const led_pin_drives: [(MatrixPin, MatrixPin); 20] = [
     (MatrixPin::PinA, MatrixPin::PinB),
     (MatrixPin::PinA, MatrixPin::PinC),
     (MatrixPin::PinA, MatrixPin::PinD),
@@ -96,21 +108,21 @@ const led_pin_drives: [(MatrixPin, MatrixPin)] = [
     (MatrixPin::PinE, MatrixPin::PinD),
 ];
 
-impl LedMatrix for LedMatrixDefinition
+impl LedMatrix for LedMatrixDefinition//<T>
 {
     fn new(
-        matrix_a: MatrixPin,
-        matrix_b: MatrixPin,
-        matrix_c: MatrixPin,
-        matrix_d: MatrixPin,
-        matrix_e: MatrixPin,
+        // matrix_a: &'static T,
+        // matrix_b: &'static T,
+        // matrix_c: &'static T,
+        // matrix_d: &'static T,
+        // matrix_e: &'static T,
     ) -> Result<LedMatrixDefinition, Self::Error> {
         Ok(LedMatrixDefinition {
-            pin_a: matrix_a,
-            pin_b: matrix_b,
-            pin_c: matrix_c,
-            pin_d: matrix_d,
-            pin_e: matrix_e,
+            // pin_a: matrix_a,
+            // pin_b: matrix_b,
+            // pin_c: matrix_c,
+            // pin_d: matrix_d,
+            // pin_e: matrix_e,
 
             pin_state: [0; 20],
             driving_cycle: 0,
@@ -119,11 +131,12 @@ impl LedMatrix for LedMatrixDefinition
     }
 
     fn set_value(&mut self, led: u8, value: u8) {
-        if led >= led_pin_drives.len() {
-            panic!("LED {led} exceeds matrix definition length")
+        if led >= led_pin_drives.len() as u8 {
+            //TODO: Return error
+            return;
         }
 
-        self.pin_state[led] = value;
+        self.pin_state[led as usize] = value;
     }
 
     fn clear(&mut self) {
@@ -141,7 +154,7 @@ impl LedMatrix for LedMatrixDefinition
             MatrixPin::PinE => {
                 self.driving_cycle += 1;
 
-                if self.driving_cycle == cycles.len() {
+                if self.driving_cycle == cycles.len() as u8 {
                     self.driving_cycle = 0;
                 } 
 
@@ -149,13 +162,78 @@ impl LedMatrix for LedMatrixDefinition
             }
         }
     }
+
+    type Error = MatrixError;
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
-    fn first_test() {
-        assert_eq!(2, 3);
+    fn matrix_begins_0th_cycle() {
+        let under_test = LedMatrixDefinition::new().unwrap();
+
+        assert_eq!(under_test.driving_cycle, 0);
+    }
+
+    #[test]
+    fn matrix_begins_pin_a() {
+        let under_test = LedMatrixDefinition::new().unwrap();
+
+        assert_eq!(under_test.driving_pin, MatrixPin::PinA);
+    }
+
+    #[test]
+    fn matrix_step_increments_pin() {
+        let mut under_test = LedMatrixDefinition::new().unwrap();
+
+        under_test.step();
+
+        assert_eq!(under_test.driving_pin, MatrixPin::PinB);
+    }
+
+    #[test]
+    fn matrix_5_steps_drives_a() {
+        let mut under_test = LedMatrixDefinition::new().unwrap();
+
+        for _ in 0..5 {
+            under_test.step();
+        }
+
+        assert_eq!(under_test.driving_pin, MatrixPin::PinA);
+    }
+
+    #[test]
+    fn matrix_5_steps_increments_cycle() {
+        let mut under_test = LedMatrixDefinition::new().unwrap();
+
+        for _ in 0..5 {
+            under_test.step();
+        }
+
+        assert_eq!(under_test.driving_cycle, 1);
+    }
+
+    #[test]
+    fn matrix_20_steps_cycle_is_0() {
+        let mut under_test = LedMatrixDefinition::new().unwrap();
+
+        for _ in 0..20 {
+            under_test.step();
+        }
+
+        assert_eq!(under_test.driving_cycle, 0);
+    }
+
+    #[test]
+    fn matrix_20_steps_driving_pin_is_a() {
+        let mut under_test = LedMatrixDefinition::new().unwrap();
+
+        for _ in 0..20 {
+            under_test.step();
+        }
+
+        assert_eq!(under_test.driving_pin, MatrixPin::PinA);
     }
 }

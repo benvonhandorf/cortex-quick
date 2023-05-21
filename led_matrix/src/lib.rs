@@ -66,7 +66,7 @@ struct Cycle {
     value: u8, //Value to check for
 }
 
-const cycles: [Cycle; 4] = [
+const CYCLES: [Cycle; 4] = [
     Cycle {
         duration: 1,
         value: 10,
@@ -85,7 +85,7 @@ const cycles: [Cycle; 4] = [
     },
 ];
 
-const led_pin_drives: [(MatrixPin, MatrixPin); 20] = [
+const LED_PIN_DRIVES: [(MatrixPin, MatrixPin); 20] = [
     (MatrixPin::PinA, MatrixPin::PinB),
     (MatrixPin::PinA, MatrixPin::PinC),
     (MatrixPin::PinA, MatrixPin::PinD),

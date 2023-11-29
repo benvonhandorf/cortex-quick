@@ -131,7 +131,7 @@ impl LedMatrix for LedMatrixDefinition//<T>
     }
 
     fn set_value(&mut self, led: u8, value: u8) {
-        if led >= led_pin_drives.len() as u8 {
+        if led >= LED_PIN_DRIVES.len() as u8 {
             //TODO: Return error
             return;
         }
@@ -154,7 +154,7 @@ impl LedMatrix for LedMatrixDefinition//<T>
             MatrixPin::PinE => {
                 self.driving_cycle += 1;
 
-                if self.driving_cycle == cycles.len() as u8 {
+                if self.driving_cycle == CYCLES.len() as u8 {
                     self.driving_cycle = 0;
                 } 
 

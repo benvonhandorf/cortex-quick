@@ -27,7 +27,7 @@ samd10_bare = { git = "https://github.com/benvonhandorf/atsamd.git", branch="ats
 
 
 [features]
-default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt", "atsamd-hal/unproven"]
+default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt", "atsamd-hal/unproven", "rib_v0"]
 
 rib_v0 = []
 rib_v1 = []

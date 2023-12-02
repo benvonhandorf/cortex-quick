@@ -54,7 +54,7 @@ default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt", "atsamd-hal/unproven"]
 # bench = false
 
 [profile.dev]
-opt-level = 1
+opt-level = 3
 codegen-units = 1 # better optimizations
 debug = true # symbols are nice and they don't increase the size on Flash
 lto = true # better optimizations

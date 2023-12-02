@@ -50,10 +50,10 @@ hal::bsp_pins! {
         name: col_q
     }
     PA22 {
-        name: com_n
+        name: col_n
     }
     PA23 {
-        name: com_m
+        name: col_m
     }
     PA27 {
         name: led_data

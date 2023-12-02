@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "led_matrix",
+    "rib_bringup",
+]
+resolver = "2"
+default-members = ["rib_bringup"]

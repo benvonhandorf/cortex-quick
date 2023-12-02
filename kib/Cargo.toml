@@ -2,7 +2,7 @@
 authors = ["Ben Von Handorf <ben@skyironstudio.com>"]
 edition = "2018"
 readme = "README.md"
-name = "board"
+name = "kib_bringup"
 version = "0.1.0"
 
 # for cargo flash
@@ -14,7 +14,7 @@ version = "0.6"
 optional = true
 
 [dependencies]
-cortex-m = "0.7"
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"]}
 panic-halt = "0.2"
 panic-probe = "0.3"
 rtt-target = { version = "0.3.0", features = ["cortex-m"] }
@@ -24,13 +24,14 @@ cortex-m-semihosting = "0.5.0"
 
 atsamd-hal = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsamd10d" }
 samd10_bare = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsamd10d" }
+smart-leds = "0.3.0"
+ws2812-timer-delay = "0.3.0"
+
+# led_matrix = { path = "led_matrix" }
 
 
 [features]
-default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt", "atsamd-hal/unproven", "rib_v0"]
-
-rib_v0 = []
-rib_v1 = []
+default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt", "atsamd-hal/unproven"]
 
 
 # Uncomment for the panic example.
@@ -47,12 +48,19 @@ rib_v1 = []
 # version = "0.7.1"
 
 # this lets you use `cargo fix`!
-[[bin]]
-name = "board"
-test = false
-bench = false
+# [[bin]]
+# name = "cargo-quick"
+# test = false
+# bench = false
 
-# [profile.release]
-# codegen-units = 1 # better optimizations
-# debug = true # symbols are nice and they don't increase the size on Flash
-# lto = true # better optimizations
+[profile.dev]
+opt-level = 1
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations

@@ -1,13 +1,14 @@
+// #![cfg_attr(not(test), no_std)]
 #![no_std]
 #![no_main]
 
 mod keyboard_matrix;
 mod kib_board;
 
-#[cfg(not(feature = "use_semihosting"))]
-use panic_halt as _;
-#[cfg(feature = "use_semihosting")]
-use panic_semihosting as _;
+// #[cfg(not(feature = "use_semihosting"))]
+// use panic_halt as _;
+// #[cfg(feature = "use_semihosting")]
+// use panic_semihosting as _;
 
 use kib_board as bsp;
 
@@ -26,8 +27,12 @@ use pac::{CorePeripherals, Peripherals};
 use smart_leds::{hsv::RGB8, SmartLedsWrite};
 use ws2812_timer_delay as ws2812;
 
+use rtt_target::{rtt_init_print, rprintln};
+
 #[entry]
 fn main() -> ! {
+    rtt_init_print!();
+
     let mut peripherals = Peripherals::take().unwrap();
     let core = CorePeripherals::take().unwrap();
     let mut clocks = GenericClockController::with_internal_32kosc(
@@ -61,8 +66,12 @@ fn main() -> ! {
     loop {
         let result = keyboard_matrix.scan();
 
-        if result.pressed > 0 {
-            output_pin.toggle().ok();
+        if result.pressed_count > 0 || result.released_count > 0 {
+            rprintln!("Key state: {}", result.depressed_count);
         }
+
+        if result.depressed_count > 0 {
+            output_pin.toggle().ok();
+        } 
     }
 }

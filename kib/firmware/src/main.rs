@@ -28,6 +28,7 @@ use ws2812_timer_delay as ws2812;
 use rtt_target::{rtt_init_print, rprintln};
 
 use keyboard_matrix;
+use illuminator;
 
 #[entry]
 fn main() -> ! {
@@ -63,6 +64,12 @@ fn main() -> ! {
         pins.col_q.into_pull_down_input(),
     );
 
+    let led_data_pin = pins.led_data.into_push_pull_output();
+
+    let mut led_strand = ws2812::Ws2812::new(led_timer, led_data_pin);
+
+    let mut illuminator = Illuminator::new(led_strand);
+
     loop {
         let result = keyboard_matrix.scan();
 
@@ -73,5 +80,9 @@ fn main() -> ! {
         if result.depressed_count > 0 {
             output_pin.toggle().ok();
         } 
+
+        illuminator.update(&result);
+
+        illuminator.render();
     }
 }

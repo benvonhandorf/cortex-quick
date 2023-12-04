@@ -29,6 +29,7 @@ ws2812-timer-delay = "0.3.0"
 more-asserts = "0.3.1"
 
 keyboard_matrix = { path = "../keyboard_matrix" }
+illuminator = { path = "../illuminator" }
 
 
 [features]

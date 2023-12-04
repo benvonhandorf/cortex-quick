@@ -2,7 +2,7 @@
 
 mod keyboard_state;
 
-use crate::keyboard_state::KeyboardState;
+pub use crate::keyboard_state::KeyboardState;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
 pub struct KeyboardMatrix<ROWA, ROWB, ROWC, ROWD, ROWE, COLM, COLN, COLO, COLP, COLQ> {

@@ -15,8 +15,8 @@ optional = true
 
 [dependencies]
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"]}
-# panic-halt = "0.2"
-# panic-probe = "0.3"
+panic-halt = "0.2"
+panic-probe = "0.3"
 rtt-target = { version = "0.4.0" }
 
 cortex-m-rt = "0.7"
@@ -28,7 +28,7 @@ smart-leds = "0.3.0"
 ws2812-timer-delay = "0.3.0"
 more-asserts = "0.3.1"
 
-# led_matrix = { path = "led_matrix" }
+keyboard_matrix = { path = "../keyboard_matrix" }
 
 
 [features]

@@ -1,14 +1,12 @@
-// #![cfg_attr(not(test), no_std)]
 #![no_std]
 #![no_main]
 
-mod keyboard_matrix;
 mod kib_board;
 
-// #[cfg(not(feature = "use_semihosting"))]
-// use panic_halt as _;
-// #[cfg(feature = "use_semihosting")]
-// use panic_semihosting as _;
+#[cfg(not(feature = "use_semihosting"))]
+use panic_halt as _;
+#[cfg(feature = "use_semihosting")]
+use panic_semihosting as _;
 
 use kib_board as bsp;
 
@@ -28,6 +26,8 @@ use smart_leds::{hsv::RGB8, SmartLedsWrite};
 use ws2812_timer_delay as ws2812;
 
 use rtt_target::{rtt_init_print, rprintln};
+
+use keyboard_matrix;
 
 #[entry]
 fn main() -> ! {

@@ -1,0 +1,13 @@
+[package]
+name = "illuminator"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+smart-leds = "0.3.0"
+embedded-hal = {version = "0.2.7", features = ["unproven"]}
+
+[dev-dependencies]
+more-asserts = "0.3.1"

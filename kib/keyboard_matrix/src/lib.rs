@@ -2,8 +2,8 @@
 
 mod keyboard_state;
 
-use embedded_hal::digital::v2::{InputPin, OutputPin};
 use crate::keyboard_state::KeyboardState;
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 
 pub struct KeyboardMatrix<ROWA, ROWB, ROWC, ROWD, ROWE, COLM, COLN, COLO, COLP, COLQ> {
     row_a: ROWA,
@@ -79,16 +79,16 @@ where
 
         self.row_a.set_high().ok();
 
+        keystate[0] = self.col_p.is_high().ok().unwrap();
+        keystate[1] = self.col_o.is_high().ok().unwrap();
         keystate[2] = self.col_n.is_high().ok().unwrap();
         keystate[3] = self.col_m.is_high().ok().unwrap();
-        keystate[1] = self.col_o.is_high().ok().unwrap();
-        keystate[0] = self.col_p.is_high().ok().unwrap();
 
         self.row_a.set_low().ok();
         self.row_b.set_high().ok();
 
-        keystate[5] = self.col_n.is_high().ok().unwrap();
         keystate[4] = self.col_m.is_high().ok().unwrap();
+        keystate[5] = self.col_n.is_high().ok().unwrap();
         keystate[6] = self.col_o.is_high().ok().unwrap();
         keystate[7] = self.col_p.is_high().ok().unwrap();
 
@@ -96,24 +96,24 @@ where
         self.row_c.set_high().ok();
 
         keystate[11] = self.col_n.is_high().ok().unwrap();
-        keystate[10] = self.col_m.is_high().ok().unwrap();
-        keystate[9] = self.col_o.is_high().ok().unwrap();
-        keystate[8] = self.col_p.is_high().ok().unwrap();
+        keystate[12] = self.col_o.is_high().ok().unwrap();
+        keystate[13] = self.col_p.is_high().ok().unwrap();
+        keystate[14] = self.col_m.is_high().ok().unwrap();
 
         self.row_c.set_low().ok();
         self.row_d.set_high().ok();
 
-        keystate[15] = self.col_n.is_high().ok().unwrap();
-        keystate[12] = self.col_m.is_high().ok().unwrap();
-        keystate[14] = self.col_o.is_high().ok().unwrap();
-        keystate[13] = self.col_p.is_high().ok().unwrap();
+        keystate[10] = self.col_o.is_high().ok().unwrap();
+        keystate[15] = self.col_m.is_high().ok().unwrap();
+        keystate[16] = self.col_p.is_high().ok().unwrap();
+        keystate[17] = self.col_n.is_high().ok().unwrap();
 
         self.row_d.set_low().ok();
         self.row_e.set_high().ok();
 
-        keystate[17] = self.col_n.is_high().ok().unwrap();
-        keystate[16] = self.col_m.is_high().ok().unwrap();
-        keystate[18] = self.col_o.is_high().ok().unwrap();
+        keystate[8] = self.col_o.is_high().ok().unwrap();
+        keystate[9] = self.col_m.is_high().ok().unwrap();
+        keystate[18] = self.col_n.is_high().ok().unwrap();
         keystate[19] = self.col_p.is_high().ok().unwrap();
         keystate[20] = self.col_q.is_high().ok().unwrap();
 

@@ -77,16 +77,7 @@ fn main() -> ! {
     loop {
         let keystate = keyboard_matrix.scan(&mut delay);
 
-        if keystate.pressed_count > 0 || keystate.released_count > 0 {
-            rprint!("Keys {}: ", keystate.depressed_count);
-            for i in 0..21 {
-                if keystate.state[i] {
-                    rprint!("{} ", i);
-                }
-            }
-
-            rprintln!("");
-        }
+        // print_keystate(&keystate);
 
         illuminator.decay();
 
@@ -95,5 +86,18 @@ fn main() -> ! {
         illuminator.render();
 
         output_pin.toggle().ok();
+    }
+}
+
+fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
+    if keystate.pressed_count > 0 || keystate.released_count > 0 {
+        rprint!("Keys {}: ", keystate.depressed_count);
+        for i in 0..21 {
+            if keystate.state[i] {
+                rprint!("{} ", i);
+            }
+        }
+
+        rprintln!("");
     }
 }

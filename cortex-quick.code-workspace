@@ -6,10 +6,7 @@
 	],
 	"settings": {
 		"rust-analyzer.check.command": "clippy",
-		"rust-analyzer.linkedProjects": [
-			"Cargo.toml",
-			"./kib/Cargo.toml"
-		],
-		"rust-analyzer.cargo.features": []
+		"rust-analyzer.cargo.features": [],
+		"rust-analyzer.check.overrideCommand": null
 	}
 }

@@ -22,13 +22,13 @@ use hal::time::*;
 use hal::timer::*;
 use pac::{CorePeripherals, Peripherals};
 
-use smart_leds::{hsv::RGB8, SmartLedsWrite};
+use rtt_target::rprint;
 use ws2812_timer_delay as ws2812;
 
 use rtt_target::{rtt_init_print, rprintln};
 
-use keyboard_matrix;
-use illuminator;
+use keyboard_matrix::KeyboardMatrix;
+use illuminator::Illuminator;
 
 #[entry]
 fn main() -> ! {
@@ -46,12 +46,15 @@ fn main() -> ! {
     let gclk0 = clocks.gclk0();
     let tc12 = &clocks.tc1_tc2(&gclk0).unwrap();
     let mut led_timer = TimerCounter::tc1_(tc12, peripherals.TC1, &mut peripherals.PM);
-    led_timer.start(MegaHertz::MHz(3).into_duration());
+    led_timer.start(MegaHertz::MHz(5).into_duration());
 
     let pins = bsp::Pins::new(peripherals.PORT);
     let mut output_pin = pins.int.into_push_pull_output();
 
-    let mut keyboard_matrix = keyboard_matrix::KeyboardMatrix::new(
+    let mut delay = Delay::new(core.SYST, &mut clocks);
+
+
+    let mut keyboard_matrix = KeyboardMatrix::new(
         pins.row_a.into_push_pull_output(),
         pins.row_b.into_push_pull_output(),
         pins.row_c.into_push_pull_output(),
@@ -64,25 +67,33 @@ fn main() -> ! {
         pins.col_q.into_pull_down_input(),
     );
 
-    let led_data_pin = pins.led_data.into_push_pull_output();
+    let mut led_data_pin = pins.led_data.into_push_pull_output();
+    led_data_pin.set_drive_strength(true);
 
     let mut led_strand = ws2812::Ws2812::new(led_timer, led_data_pin);
 
-    let mut illuminator = Illuminator::new(led_strand);
+    let mut illuminator = Illuminator::new(&mut led_strand);
 
     loop {
-        let result = keyboard_matrix.scan();
+        let keystate = keyboard_matrix.scan(&mut delay);
 
-        if result.pressed_count > 0 || result.released_count > 0 {
-            rprintln!("Key state: {}", result.depressed_count);
+        if keystate.pressed_count > 0 || keystate.released_count > 0 {
+            rprint!("Keys {}: ", keystate.depressed_count);
+            for i in 0..21 {
+                if keystate.state[i] {
+                    rprint!("{} ", i);
+                }
+            }
+
+            rprintln!("");
         }
 
-        if result.depressed_count > 0 {
-            output_pin.toggle().ok();
-        } 
+        illuminator.decay();
 
-        illuminator.update(&result);
+        illuminator.update(&keystate);
 
         illuminator.render();
+
+        output_pin.toggle().ok();
     }
 }

@@ -6,6 +6,7 @@ pub use atsamd_hal as hal;
 pub use hal::ehal;
 pub use hal::pac;
 
+/// Board Support Package for v1 of the KIB board
 hal::bsp_pins! {
     PA02 {
         name: addr_set

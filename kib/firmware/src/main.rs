@@ -27,6 +27,7 @@ use ws2812_timer_delay as ws2812;
 
 use rtt_target::{rtt_init_print, rprintln};
 
+use synth_engine::SynthEngine;
 use keyboard_matrix::KeyboardMatrix;
 use illuminator::Illuminator;
 
@@ -53,6 +54,7 @@ fn main() -> ! {
 
     let mut delay = Delay::new(core.SYST, &mut clocks);
 
+    let mut synth_engine = SynthEngine::new();
 
     let mut keyboard_matrix = KeyboardMatrix::new(
         pins.row_a.into_push_pull_output(),
@@ -74,14 +76,28 @@ fn main() -> ! {
 
     let mut illuminator = Illuminator::new(&mut led_strand);
 
+
     loop {
+        rprintln!("Begin loop:");
+
         let keystate = keyboard_matrix.scan(&mut delay);
+
+        // Future: Process raw keyboard strokes into commands
+
+        rprintln!("Synth Engine:");
+
+        // Update Synth Engine state
+        synth_engine.update(&keystate);
+
+        rprintln!("Illuminator:");
+
+        // print_synthengine(&synth_engine);
 
         // print_keystate(&keystate);
 
         illuminator.decay();
 
-        illuminator.update(&keystate);
+        illuminator.update(&keystate, &synth_engine.state);
 
         illuminator.render();
 
@@ -89,15 +105,25 @@ fn main() -> ! {
     }
 }
 
-fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
-    if keystate.pressed_count > 0 || keystate.released_count > 0 {
-        rprint!("Keys {}: ", keystate.depressed_count);
-        for i in 0..21 {
-            if keystate.state[i] {
-                rprint!("{} ", i);
-            }
-        }
+// fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
+//     if keystate.pressed_count > 0 || keystate.released_count > 0 {
+//         rprint!("Keys {}: ", keystate.depressed_count);
+//         for i in 0..21 {
+//             if keystate.state[i] {
+//                 rprint!("{} ", i);
+//             }
+//         }
+//
+//         rprintln!("");
+//     }
+// }
 
-        rprintln!("");
-    }
+fn print_synthengine(synth_engine: &synth_engine::SynthEngine) {
+    rprintln!("Octave: {}", synth_engine.state.octave);
+
+    // for note_index in 0..synth_engine::NUM_NOTES {
+    //     if synth_engine.state.note_index_state[note_index].is_active() {
+    //         rprintln!("Note: {} {}", synth_engine.state.note_index_to_midi(note_index as u8), synth_engine.state.note_index_state[note_index].to_int());
+    //     }
+    // }
 }

@@ -8,6 +8,7 @@ version = "0.1.0"
 [dependencies]
 embedded-hal = {version = "0.2.7", features = ["unproven"]}
 keyboard_matrix = {path = "../keyboard_matrix"}
+synth_engine = {path = "../synth_engine"}
 smart-leds = "0.3.0"
 rtt-target = { version = "0.4.0" }
 

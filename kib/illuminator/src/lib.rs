@@ -3,6 +3,7 @@
 use core::fmt::Error;
 
 use keyboard_matrix::KeyboardState;
+use synth_engine::SynthState;
 use smart_leds::{hsv::RGB8, SmartLedsWrite};
 
 use rtt_target::{rtt_init_print, rprintln};
@@ -39,7 +40,13 @@ const ADJACENCY_BY_INDEX: [[u8; 6]; 21] = [
 
 const STRIKE_COLOR : RGB8 = RGB8 { r: 0, g: 255, b: 0 };
 const SUSTAIN_COLOR : RGB8  = RGB8 { r: 0, g: 64, b: 0 };
-const NEIGHBOR_COLOR_BASE : RGB8 = RGB8 { r: 64, g: 0, b: 64 };
+const NEIGHBOR_COLORS : [RGB8 ; 5] = [
+    RGB8 { r: 8, g: 0, b: 0 },
+    RGB8 { r: 16, g: 0, b: 8 },
+    RGB8 { r: 32, g: 8, b: 16 },
+    RGB8 { r: 64, g: 16, b: 32 },
+    RGB8 { r: 64, g: 32, b: 64 },
+];
 
 impl<'a, LedStrand> Illuminator<'a, LedStrand>
 where
@@ -76,16 +83,39 @@ where
         self.needs_refresh = self.needs_refresh || modified;
     }
 
-    pub fn update(&mut self, keyboard_state: &KeyboardState) {
+    pub fn update(&mut self, keyboard_state: &KeyboardState, synth_state: &SynthState) {
         let mut modified = false;
 
-        for i in 0..21 {
-            if keyboard_state.pressed[i] {
-                modified = self.set_led_color(i as u8, STRIKE_COLOR) || modified;
+        //Octave strike animations are non-obvious from the synth state
+        for key_index in 0..8 {
+            if keyboard_state.pressed[key_index as usize] {
+                modified = self.set_led_color(key_index, STRIKE_COLOR) || modified;
 
-                self.spread_to_adjacent(i as u8, NEIGHBOR_COLOR_BASE, 2);
-            } else if keyboard_state.state[i] {
-                modified = self.set_led_color(i as u8, SUSTAIN_COLOR) || modified;
+                let recurse_level: u8 = 2;
+
+                self.spread_to_adjacent(key_index, NEIGHBOR_COLORS[recurse_level as usize], recurse_level);
+            }
+        }
+
+        modified = self.set_led_color(synth_state.octave - 1, SUSTAIN_COLOR) || modified;
+
+        //For other keys, we can use the synth engine to determine state
+        for note_offset in 0..12 {
+            let note_index = synth_state.note_offset_to_note_index(note_offset);
+            let index = synth_state.note_offset_to_index(note_offset);
+
+            match synth_state.note_index_state[note_index as usize] {
+                synth_engine::NoteState::Pressed => {
+                    modified = self.set_led_color(index, STRIKE_COLOR) || modified;
+
+                    let recurse_level: u8 = 2;
+
+                    self.spread_to_adjacent(index, NEIGHBOR_COLORS[recurse_level as usize], recurse_level);
+                }
+                synth_engine::NoteState::Sustain => {
+                    modified = self.set_led_color(index, SUSTAIN_COLOR) || modified;
+                }
+                _ => {} //Release and Off are handled by the normal decay mechanism
             }
         }
 
@@ -131,11 +161,7 @@ where
                 self.set_led_color(neighbor, color);
 
                 if recurse_level > 0 {
-                    self.spread_to_adjacent(neighbor, RGB8 {
-                        r: color.r / 2,
-                        g: color.g / 2,
-                        b: color.b / 2,
-                    }, recurse_level - 1);
+                    self.spread_to_adjacent(neighbor, NEIGHBOR_COLORS[recurse_level as usize], recurse_level - 1);
                 }
             }
         }

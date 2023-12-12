@@ -1,7 +1,6 @@
 #![no_std]
 
 use core::u8;
-use core::fmt::Display;
 
 use keyboard_matrix::KeyboardState;
 
@@ -9,7 +8,7 @@ const MIDI_NOTE_OFFSET : u8 = 24; //0th note is C1
 pub const NUM_NOTES : usize = 97; //8 octaves, 12 notes per octave, plus 1 extra C in octave 8
 
 /// State of a note
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum NoteState {
     Off,
     Pressed,
@@ -178,7 +177,7 @@ impl SynthEngine {
         for i in 8..21 {
             let note_index = self.state.index_to_note_index(i);
 
-            if keyboard_state.pressed[i as usize] {
+            if keyboard_state.state[i as usize] {
                 self.state.activate_note_index(note_index);
             } else {
                 self.state.deactivate_note_index(note_index);
@@ -242,5 +241,129 @@ mod test {
         synth_engine.update(&keyboard_state);
 
         assert_eq!(synth_engine.state.octave, 4);
+    }
+
+    #[test]
+    fn update_with_no_key_pressed_shows_off() {
+        let mut synth_engine = SynthEngine::new();
+        let mut keyboard_state = keyboard_matrix::KeyboardState::default();
+
+        synth_engine.update(&keyboard_state);
+
+        assert_eq!(synth_engine.state.note_index_state[36].to_int(), crate::NoteState::Off.to_int());
+    }
+
+    #[test]
+    fn update_with_no_key_pressed_shows_pressed() {
+        let mut synth_engine = SynthEngine::new();
+        let mut keyboard_state = keyboard_matrix::KeyboardState::default();
+
+        keyboard_state.state[13] = true;
+
+        synth_engine.update(&keyboard_state);
+
+        assert_eq!(synth_engine.state.note_index_state[36].to_int(), crate::NoteState::Pressed.to_int());
+    }
+
+    #[test]
+    fn update_with_pressed_key_pressed_shows_sustain() {
+        let mut synth_engine = SynthEngine::new();
+        let mut keyboard_state = keyboard_matrix::KeyboardState::default();
+
+        synth_engine.state.note_index_state[36] = crate::NoteState::Pressed;
+
+        keyboard_state.state[13] = true;
+
+        synth_engine.update(&keyboard_state);
+
+        assert_eq!(synth_engine.state.note_index_state[36].to_int(), crate::NoteState::Sustain.to_int());
+    }
+
+    #[test]
+    fn update_with_sustained_key_pressed_shows_sustain() {
+        let mut synth_engine = SynthEngine::new();
+        let mut keyboard_state = keyboard_matrix::KeyboardState::default();
+
+        synth_engine.state.note_index_state[36] = crate::NoteState::Sustain;
+
+        keyboard_state.state[13] = true;
+
+        synth_engine.update(&keyboard_state);
+
+        assert_eq!(synth_engine.state.note_index_state[36].to_int(), crate::NoteState::Sustain.to_int());
+    }
+
+    #[test]
+    fn update_with_sustained_key_released_shows_release() {
+        let mut synth_engine = SynthEngine::new();
+        let mut keyboard_state = keyboard_matrix::KeyboardState::default();
+
+        synth_engine.state.note_index_state[36] = crate::NoteState::Sustain;
+
+        keyboard_state.state[13] = false;
+
+        synth_engine.update(&keyboard_state);
+
+        assert_eq!(synth_engine.state.note_index_state[36].to_int(), crate::NoteState::Release.to_int());
+    }
+
+    #[test]
+    fn update_with_released_key_released_shows_off() {
+        let mut synth_engine = SynthEngine::new();
+        let mut keyboard_state = keyboard_matrix::KeyboardState::default();
+
+        synth_engine.state.note_index_state[36] = crate::NoteState::Release;
+
+        keyboard_state.state[13] = false;
+
+        synth_engine.update(&keyboard_state);
+
+        assert_eq!(synth_engine.state.note_index_state[36].to_int(), crate::NoteState::Off.to_int());
+    }
+
+    #[test]
+    fn nodestate_activate_pressed_is_sustain() {
+        let under_test = crate::NoteState::Pressed;
+
+        let result = under_test.activate();
+
+        assert_eq!(result.to_int(), crate::NoteState::Sustain.to_int(), "Expected Pressed to activate to Sustain");
+    }
+
+
+    #[test]
+    fn nodestate_none_pressed_is_pressed() {
+        let under_test = crate::NoteState::Off;
+
+        let result = under_test.activate();
+
+        assert_eq!(result.to_int(), crate::NoteState::Pressed.to_int(), "Expected Off to activate to Pressed");
+    }
+
+    #[test]
+    fn nodestate_activate_sustain_is_sustain() {
+        let under_test = crate::NoteState::Sustain;
+
+        let result = under_test.activate();
+
+        assert_eq!(result.to_int(), crate::NoteState::Sustain.to_int(), "Expected Sustain to activate to Sustain");
+    }
+
+    #[test]
+    fn nodestate_deactivate_sustain_is_release() {
+        let under_test = crate::NoteState::Sustain;
+
+        let result = under_test.deactivate();
+
+        assert_eq!(result.to_int(), crate::NoteState::Release.to_int(), "Expected Sustain to deactivate to Release");
+    }
+
+    #[test]
+    fn nodestate_deactivate_release_is_off() {
+        let under_test = crate::NoteState::Release;
+
+        let result = under_test.deactivate();
+
+        assert_eq!(result.to_int(), crate::NoteState::Off.to_int(), "Expected Sustain to deactivate to Off");
     }
 }

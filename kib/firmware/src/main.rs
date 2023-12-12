@@ -14,7 +14,6 @@ use bsp::hal;
 use bsp::pac;
 
 use bsp::entry;
-use cortex_m::asm;
 use hal::clock::GenericClockController;
 use hal::delay::Delay;
 use hal::prelude::*;
@@ -78,18 +77,12 @@ fn main() -> ! {
 
 
     loop {
-        rprintln!("Begin loop:");
-
         let keystate = keyboard_matrix.scan(&mut delay);
 
         // Future: Process raw keyboard strokes into commands
 
-        rprintln!("Synth Engine:");
-
         // Update Synth Engine state
         synth_engine.update(&keystate);
-
-        rprintln!("Illuminator:");
 
         // print_synthengine(&synth_engine);
 
@@ -105,25 +98,25 @@ fn main() -> ! {
     }
 }
 
-// fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
-//     if keystate.pressed_count > 0 || keystate.released_count > 0 {
-//         rprint!("Keys {}: ", keystate.depressed_count);
-//         for i in 0..21 {
-//             if keystate.state[i] {
-//                 rprint!("{} ", i);
-//             }
-//         }
-//
-//         rprintln!("");
-//     }
-// }
+fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
+    if keystate.pressed_count > 0 || keystate.released_count > 0 {
+        rprint!("Keys {}: ", keystate.depressed_count);
+        for i in 0..21 {
+            if keystate.state[i] {
+                rprint!("{} ", i);
+            }
+        }
+
+        rprintln!("");
+    }
+}
 
 fn print_synthengine(synth_engine: &synth_engine::SynthEngine) {
     rprintln!("Octave: {}", synth_engine.state.octave);
 
-    // for note_index in 0..synth_engine::NUM_NOTES {
-    //     if synth_engine.state.note_index_state[note_index].is_active() {
-    //         rprintln!("Note: {} {}", synth_engine.state.note_index_to_midi(note_index as u8), synth_engine.state.note_index_state[note_index].to_int());
-    //     }
-    // }
+    for note_index in 0..synth_engine::NUM_NOTES {
+        if synth_engine.state.note_index_state[note_index] != synth_engine::NoteState::Off {
+            rprintln!("Note: {} {}", synth_engine.state.note_index_to_midi(note_index as u8), synth_engine.state.note_index_state[note_index].to_int());
+        }
+    }
 }

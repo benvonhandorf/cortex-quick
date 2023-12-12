@@ -12,6 +12,7 @@ pub struct Illuminator<'a, StrandType> {
     led_strand: &'a mut StrandType,
     led_data: [RGB8; 21],
     needs_refresh: bool,
+    skipped_update_count: u16,
 }
 
 const ADJACENCY_BY_INDEX: [[u8; 6]; 21] = [
@@ -39,13 +40,20 @@ const ADJACENCY_BY_INDEX: [[u8; 6]; 21] = [
 ];
 
 const STRIKE_COLOR : RGB8 = RGB8 { r: 0, g: 255, b: 0 };
+const STRIKE_COLOR_OCTAVE : RGB8 = RGB8 { r: 0, g: 64, b: 255 };
 const SUSTAIN_COLOR : RGB8  = RGB8 { r: 0, g: 64, b: 0 };
-const NEIGHBOR_COLORS : [RGB8 ; 5] = [
-    RGB8 { r: 8, g: 0, b: 0 },
-    RGB8 { r: 16, g: 0, b: 8 },
-    RGB8 { r: 32, g: 8, b: 16 },
-    RGB8 { r: 64, g: 16, b: 32 },
-    RGB8 { r: 64, g: 32, b: 64 },
+const SUSTAIN_COLOR_OCTAVE : RGB8  = RGB8 { r: 0, g: 0, b: 32 };
+
+const NEIGHBOR_COLORS : [RGB8 ; 3] = [
+    RGB8 { r:128, g:255,b: 219,},
+    RGB8 { r:239, g:64,b: 161,},
+    RGB8 { r:17, g:64,b: 4,},
+];
+
+const NEIGHBOR_COLORS_OCTAVE : [RGB8 ; 3] = [
+    RGB8 { r:128, g:0,b: 0,},
+    RGB8 { r:0, g:0,b: 0,},
+    RGB8 { r:0, g:0,b: 0,},
 ];
 
 impl<'a, LedStrand> Illuminator<'a, LedStrand>
@@ -57,6 +65,7 @@ where
             led_strand: led_strand,
             led_data: [RGB8::default(); 21],
             needs_refresh: true,
+            skipped_update_count: 0,
         }
     }
 
@@ -86,21 +95,25 @@ where
     pub fn update(&mut self, keyboard_state: &KeyboardState, synth_state: &SynthState) {
         let mut modified = false;
 
+        if self.skipped_update_count > 100 {
+            modified = true;
+        }
+
         //Octave strike animations are non-obvious from the synth state
         for key_index in 0..8 {
             if keyboard_state.pressed[key_index as usize] {
-                modified = self.set_led_color(key_index, STRIKE_COLOR) || modified;
+                modified = self.set_led_color(key_index, STRIKE_COLOR_OCTAVE) || modified;
 
-                let recurse_level: u8 = 2;
+                let recurse_level: u8 = 0;
 
-                self.spread_to_adjacent(key_index, NEIGHBOR_COLORS[recurse_level as usize], recurse_level);
+                self.spread_to_adjacent(key_index, &NEIGHBOR_COLORS_OCTAVE, recurse_level);
             }
         }
 
-        modified = self.set_led_color(synth_state.octave - 1, SUSTAIN_COLOR) || modified;
+        modified = self.set_led_color(synth_state.octave - 1, SUSTAIN_COLOR_OCTAVE) || modified;
 
         //For other keys, we can use the synth engine to determine state
-        for note_offset in 0..12 {
+        for note_offset in 0..13 {
             let note_index = synth_state.note_offset_to_note_index(note_offset);
             let index = synth_state.note_offset_to_index(note_offset);
 
@@ -108,9 +121,9 @@ where
                 synth_engine::NoteState::Pressed => {
                     modified = self.set_led_color(index, STRIKE_COLOR) || modified;
 
-                    let recurse_level: u8 = 2;
+                    let recurse_level: u8 = 1;
 
-                    self.spread_to_adjacent(index, NEIGHBOR_COLORS[recurse_level as usize], recurse_level);
+                    self.spread_to_adjacent(index, &NEIGHBOR_COLORS, recurse_level);
                 }
                 synth_engine::NoteState::Sustain => {
                     modified = self.set_led_color(index, SUSTAIN_COLOR) || modified;
@@ -153,15 +166,15 @@ where
         modified
     }
 
-    fn spread_to_adjacent(&mut self, index: u8, color: RGB8, recurse_level: u8) {
+    fn spread_to_adjacent(&mut self, index: u8, color_set: &[RGB8; 3], recurse_level: u8) {
 
         for i in 0..6 {
             let neighbor = ADJACENCY_BY_INDEX[index as usize][i];
             if neighbor != 255 {
-                self.set_led_color(neighbor, color);
+                self.set_led_color(neighbor, color_set[recurse_level as usize]);
 
                 if recurse_level > 0 {
-                    self.spread_to_adjacent(neighbor, NEIGHBOR_COLORS[recurse_level as usize], recurse_level - 1);
+                    self.spread_to_adjacent(neighbor, color_set, recurse_level - 1);
                 }
             }
         }
@@ -181,6 +194,10 @@ where
                 .write(self.led_data.iter().cloned())
                 .unwrap();
             self.needs_refresh = false;
+
+            self.skipped_update_count = 0;
+        } else {
+            self.skipped_update_count += 1;
         }
     }
 }

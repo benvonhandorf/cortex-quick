@@ -40,8 +40,8 @@ const ADJACENCY_BY_INDEX: [[u8; 6]; 21] = [
 ];
 
 const STRIKE_COLOR : RGB8 = RGB8 { r: 0, g: 255, b: 0 };
-const STRIKE_COLOR_OCTAVE : RGB8 = RGB8 { r: 0, g: 64, b: 255 };
 const SUSTAIN_COLOR : RGB8  = RGB8 { r: 0, g: 64, b: 0 };
+const STRIKE_COLOR_OCTAVE : RGB8 = RGB8 { r: 0, g: 64, b: 255 };
 const SUSTAIN_COLOR_OCTAVE : RGB8  = RGB8 { r: 0, g: 0, b: 32 };
 
 const NEIGHBOR_COLORS : [RGB8 ; 3] = [
@@ -50,11 +50,33 @@ const NEIGHBOR_COLORS : [RGB8 ; 3] = [
     RGB8 { r:17, g:64,b: 4,},
 ];
 
+const NEIGHBOR_COLORS_SUSTAIN : [RGB8 ; 3] = [
+    RGB8 { r:128, g:0,b: 0,},
+    RGB8 { r:0, g:0,b: 0,},
+    RGB8 { r:0, g:0,b: 0,},
+];
+
 const NEIGHBOR_COLORS_OCTAVE : [RGB8 ; 3] = [
     RGB8 { r:128, g:0,b: 0,},
     RGB8 { r:0, g:0,b: 0,},
     RGB8 { r:0, g:0,b: 0,},
 ];
+
+fn min(a: u8, b: u8) -> u8 {
+    if a < b {
+        a
+    } else {
+        b
+    }
+}
+
+fn max(a: u8, b: u8) -> u8 {
+    if a > b {
+        a
+    } else {
+        b
+    }
+}
 
 impl<'a, LedStrand> Illuminator<'a, LedStrand>
 where
@@ -74,17 +96,21 @@ where
 
         for i in 0..21 {
             let mut pixel = &mut self.led_data[i];
+
+            if pixel.b > 0 {
+                pixel.b -= min(3, pixel.b);
+                modified = true;
+                // continue;
+            }
+
+            if pixel.g > 0 {
+                pixel.g -= min(2, pixel.g);
+                modified = true;
+                // continue;
+            }
         
             if pixel.r > 0 {
                 pixel.r -= 1;
-                modified = true;
-            }
-            if pixel.g > 0 {
-                pixel.g -= 1;
-                modified = true;
-            }
-            if pixel.b > 0 {
-                pixel.b -= 1;
                 modified = true;
             }
         }
@@ -106,10 +132,11 @@ where
 
                 let recurse_level: u8 = 0;
 
-                self.spread_to_adjacent(key_index, &NEIGHBOR_COLORS_OCTAVE, recurse_level);
+                self.spread_to_adjacent(255, key_index, &NEIGHBOR_COLORS_OCTAVE, recurse_level);
             }
         }
 
+        //Octave LEDs are assumed to be first and contiguous
         modified = self.set_led_color(synth_state.octave - 1, SUSTAIN_COLOR_OCTAVE) || modified;
 
         //For other keys, we can use the synth engine to determine state
@@ -123,10 +150,14 @@ where
 
                     let recurse_level: u8 = 1;
 
-                    self.spread_to_adjacent(index, &NEIGHBOR_COLORS, recurse_level);
+                    self.spread_to_adjacent(255, index, &NEIGHBOR_COLORS, recurse_level);
                 }
                 synth_engine::NoteState::Sustain => {
                     modified = self.set_led_color(index, SUSTAIN_COLOR) || modified;
+
+                    let recurse_level: u8 = 0;
+
+                    self.spread_to_adjacent(255, index, &NEIGHBOR_COLORS_SUSTAIN, recurse_level);
                 }
                 _ => {} //Release and Off are handled by the normal decay mechanism
             }
@@ -166,15 +197,15 @@ where
         modified
     }
 
-    fn spread_to_adjacent(&mut self, index: u8, color_set: &[RGB8; 3], recurse_level: u8) {
+    fn spread_to_adjacent(&mut self, previous_index: u8, index: u8, color_set: &[RGB8; 3], recurse_level: u8) {
 
         for i in 0..6 {
             let neighbor = ADJACENCY_BY_INDEX[index as usize][i];
-            if neighbor != 255 {
+            if neighbor != 255 && neighbor != previous_index {
                 self.set_led_color(neighbor, color_set[recurse_level as usize]);
 
                 if recurse_level > 0 {
-                    self.spread_to_adjacent(neighbor, color_set, recurse_level - 1);
+                    self.spread_to_adjacent(index, neighbor, color_set, recurse_level - 1);
                 }
             }
         }

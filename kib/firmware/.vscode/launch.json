@@ -16,7 +16,7 @@
       "coreConfigs": [
         {
           //!MODIFY
-          "programBinary": "${workspaceFolder}/firmware/target/thumbv6m-none-eabi/debug/kib_bringup",
+          "programBinary": "${workspaceFolder}/target/thumbv6m-none-eabi/debug/kib_bringup",
         }
       ]
     }

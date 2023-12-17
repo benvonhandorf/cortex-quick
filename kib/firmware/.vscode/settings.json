@@ -1,0 +1,17 @@
+{
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.linkedProjects": [
+        "Cargo.toml"
+    ],
+    "rust-analyzer.cargo.features": [
+        // "rib_v0"
+    ],
+    // "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.target": "thumbv6m-none-eabi"
+    // "rust-analyzer.checkOnSave.allTargets": false,
+    // "rust-analyzer.checkOnSave.extraArgs": [
+    //     "--target",
+    //     "thumbv6m-none-eabi"
+    // ],
+    // "rust-analyzer.cargo.target": "thumbv6m-none-eabi"
+}

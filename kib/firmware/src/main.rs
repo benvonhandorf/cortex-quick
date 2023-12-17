@@ -2,6 +2,7 @@
 #![no_main]
 
 mod kib_board;
+// mod comms;
 
 #[cfg(not(feature = "use_semihosting"))]
 use panic_halt as _;
@@ -10,25 +11,48 @@ use panic_semihosting as _;
 
 use kib_board as bsp;
 
+use bsp::entry;
 use bsp::hal;
 use bsp::pac;
 
-use bsp::entry;
+use pac::interrupt;
+use pac::{CorePeripherals, Peripherals};
+
 use hal::clock::GenericClockController;
 use hal::delay::Delay;
 use hal::prelude::*;
 use hal::time::*;
 use hal::timer::*;
-use pac::{CorePeripherals, Peripherals};
 
-use rtt_target::rprint;
+// use rtt_target::rprint;
 use ws2812_timer_delay as ws2812;
 
-use rtt_target::{rtt_init_print, rprintln};
+use rtt_target::rtt_init_print;
 
-use synth_engine::SynthEngine;
 use keyboard_matrix::KeyboardMatrix;
-use illuminator::Illuminator;
+use synth_engine::SynthEngine;
+
+use illuminator::IlluminationEngine;
+
+static mut output_pin: Option<
+    hal::gpio::Pin<hal::gpio::PA16, hal::gpio::Output<hal::gpio::PushPull>>,
+> = None;
+
+use hal::sercom::i2c;
+
+// #[interrupt]
+// fn SERCOM0() {
+//     unsafe {
+//         output_pin.as_mut().unwrap().toggle().ok();
+
+//         // let i2cs = SERCOM0::ptr()
+//         //     .as_ref()
+//         //     .unwrap()
+//         //     .i2cs();
+
+//         // i2cs.intflag.write(|w| w.error().clear_bit());
+//     }
+// }
 
 #[entry]
 fn main() -> ! {
@@ -49,7 +73,22 @@ fn main() -> ! {
     led_timer.start(MegaHertz::MHz(5).into_duration());
 
     let pins = bsp::Pins::new(peripherals.PORT);
-    let mut output_pin = pins.int.into_push_pull_output();
+
+    //Configure I2C
+    let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
+    let pads = i2c::Pads::new(pins.sda, pins.scl);
+    let mut i2c = i2c::Config::new(
+        &peripherals.PM,
+        peripherals.SERCOM0,
+        pads,
+        sercom0_clock.freq(),
+    )
+    .baud(100.kHz())
+    .enable();
+
+    unsafe {
+        output_pin = Some(pins.int.into_push_pull_output());
+    }
 
     let mut delay = Delay::new(core.SYST, &mut clocks);
 
@@ -73,13 +112,18 @@ fn main() -> ! {
 
     let mut led_strand = ws2812::Ws2812::new(led_timer, led_data_pin);
 
-    let mut illuminator = Illuminator::new(&mut led_strand);
+    let mut illuminator = IlluminationEngine::new(&mut led_strand);
 
+    let delta_t_ms = 3;
 
     loop {
-        let keystate = keyboard_matrix.scan(&mut delay);
+        if i2c.write(0x20, &[0x00]).is_err() {
+            unsafe {
+                output_pin.as_mut().unwrap().toggle().ok();
+            }
+        }
 
-        // Future: Process raw keyboard strokes into commands
+        let keystate = keyboard_matrix.scan(&mut delay);
 
         // Update Synth Engine state
         synth_engine.update(&keystate);
@@ -88,35 +132,31 @@ fn main() -> ! {
 
         // print_keystate(&keystate);
 
-        illuminator.decay();
-
-        illuminator.update(&keystate, &synth_engine.state);
+        illuminator.update(delta_t_ms, &keystate, &synth_engine.state);
 
         illuminator.render();
-
-        output_pin.toggle().ok();
     }
 }
 
-fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
-    if keystate.pressed_count > 0 || keystate.released_count > 0 {
-        rprint!("Keys {}: ", keystate.depressed_count);
-        for i in 0..21 {
-            if keystate.state[i] {
-                rprint!("{} ", i);
-            }
-        }
+// fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
+//     if keystate.pressed_count > 0 || keystate.released_count > 0 {
+//         rprint!("Keys {}: ", keystate.depressed_count);
+//         for i in 0..21 {
+//             if keystate.state[i] {
+//                 rprint!("{} ", i);
+//             }
+//         }
 
-        rprintln!("");
-    }
-}
+//         rprintln!("");
+//     }
+// }
 
-fn print_synthengine(synth_engine: &synth_engine::SynthEngine) {
-    rprintln!("Octave: {}", synth_engine.state.octave);
+// fn print_synthengine(synth_engine: &synth_engine::SynthEngine) {
+// rprintln!("Octave: {}", synth_engine.state.octave);
 
-    for note_index in 0..synth_engine::NUM_NOTES {
-        if synth_engine.state.note_index_state[note_index] != synth_engine::NoteState::Off {
-            rprintln!("Note: {} {}", synth_engine.state.note_index_to_midi(note_index as u8), synth_engine.state.note_index_state[note_index].to_int());
-        }
-    }
-}
+// for note_index in 0..synth_engine::NUM_NOTES {
+//     if synth_engine.state.note_index_state[note_index] != synth_engine::NoteState::Off {
+//         rprintln!("Note: {} {}", synth_engine.state.note_index_to_midi(note_index as u8), synth_engine.state.note_index_state[note_index].to_int());
+//     }
+// }
+// }

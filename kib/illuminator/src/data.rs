@@ -40,32 +40,32 @@ pub fn max(a: u8, b: u8) -> u8 {
     }
 }
 
-    // pub fn decay(&mut self) {
-    //     let mut modified = false;
+// pub fn decay(&mut self) {
+//     let mut modified = false;
 
-    //     for i in 0..21 {
-    //         let mut pixel = &mut self.led_data[i];
+//     for i in 0..21 {
+//         let mut pixel = &mut self.led_data[i];
 
-    //         if pixel.b > 0 {
-    //             pixel.b -= min(3, pixel.b);
-    //             modified = true;
-    //             // continue;
-    //         }
+//         if pixel.b > 0 {
+//             pixel.b -= min(3, pixel.b);
+//             modified = true;
+//             // continue;
+//         }
 
-    //         if pixel.g > 0 {
-    //             pixel.g -= min(2, pixel.g);
-    //             modified = true;
-    //             // continue;
-    //         }
-        
-    //         if pixel.r > 0 {
-    //             pixel.r -= 1;
-    //             modified = true;
-    //         }
-    //     }
+//         if pixel.g > 0 {
+//             pixel.g -= min(2, pixel.g);
+//             modified = true;
+//             // continue;
+//         }
 
-    //     self.needs_refresh = self.needs_refresh || modified;
-    // }
+//         if pixel.r > 0 {
+//             pixel.r -= 1;
+//             modified = true;
+//         }
+//     }
+
+//     self.needs_refresh = self.needs_refresh || modified;
+// }
 
 pub trait PixelAnimation {
     fn compute(data: u32, duration: u32) -> RGB8;
@@ -139,9 +139,8 @@ impl PixelHelpers for RGB8 {
     }
 }
 
-pub fn adjacency_recursion<F>(previous_index: u8, index: u8, recurse_level: u8, callback: &F)
-where F: Fn(u8, u8) {
-
+pub fn adjacency_recursion(previous_index: u8, index: u8, recurse_level: u8, callback: &mut impl FnMut(u8, u8))
+{
     for i in 0..6 {
         let neighbor = ADJACENCY_BY_INDEX[index as usize][i];
         if neighbor != 255 && neighbor != previous_index {
@@ -177,7 +176,11 @@ mod test {
 
         assert_eq!(result, color);
 
-        let color = RGB8 { r: 100, g: 122, b: 140 };
+        let color = RGB8 {
+            r: 100,
+            g: 122,
+            b: 140,
+        };
         let data = color.serialize();
         let result = RGB8::deserialize(data);
 
@@ -192,6 +195,49 @@ mod test {
         let result = color_start.fade(color_end, 0);
 
         assert_eq!(result, color_start);
-
     }
+
+    // use std::vec::Vec;
+    
+    // #[test]
+    // fn test_adjacency_recursion_for_18_calls_8_9_17_19() {
+    //     let mut calls: Vec<(u8, u8)> = Vec::new();
+    //     {
+    //         let mut push_data = |index, recurse_level| {
+    //             calls.push((index, recurse_level));
+    //         };
+
+    //         adjacency_recursion(255, 18, 0, &mut push_data);
+    //     }
+
+    //     assert!(calls.contains(&(8, 0)));
+    //     assert!(calls.contains(&(9, 0)));
+    //     assert!(calls.contains(&(17, 0)));
+    //     assert!(calls.contains(&(19, 0)));
+    // }
+
+    // #[test]
+    // fn test_adjacency_recursion_for_18_two_levels_calls_all() {
+    //     let mut calls: Vec<(u8, u8)> = Vec::new();
+    //     {
+    //         let mut push_data = |index, recurse_level| {
+    //             calls.push((index, recurse_level));
+    //         };
+
+    //         adjacency_recursion(255, 18, 1, &mut push_data);
+    //     }
+
+    //     // assert_eq!(calls, vec![]);
+    //     assert!(calls.contains(&(8, 1)));
+    //     assert!(calls.contains(&(9, 1)));
+    //     assert!(calls.contains(&(17, 1)));
+    //     assert!(calls.contains(&(19, 1)));
+
+    //     assert!(calls.contains(&(4, 0)));
+    //     assert!(calls.contains(&(5, 0)));
+    //     assert!(calls.contains(&(6, 0)));
+    //     assert!(calls.contains(&(10, 0)));
+    //     assert!(calls.contains(&(20, 0)));
+        
+    // }
 }

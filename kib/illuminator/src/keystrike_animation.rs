@@ -10,11 +10,11 @@ const OCTAVE_STRIKE_COLOR: RGB8 = RGB8 {
     g: 64,
     b: 255,
 };
-const OCTAVE_SUSTAIN_COLOR_1: RGB8 = RGB8 { r: 0, g: 0, b: 32 };
-const OCTAVE_SUSTAIN_COLOR_2: RGB8 = RGB8 { r: 0, g: 16, b: 48 };
+// const OCTAVE_SUSTAIN_COLOR_1: RGB8 = RGB8 { r: 0, g: 0, b: 32 };
+// const OCTAVE_SUSTAIN_COLOR_2: RGB8 = RGB8 { r: 0, g: 16, b: 48 };
 
-const OCTAVE_SELECTED_COLOR_1: RGB8 = RGB8 { r: 0, g: 0, b: 32 };
-const OCTAVE_SELECTED_COLOR_2: RGB8 = RGB8 { r: 0, g: 16, b: 48 };
+pub const OCTAVE_SELECTED_COLOR_1: RGB8 = RGB8 { r: 0, g: 0, b: 32 };
+pub const OCTAVE_SELECTED_COLOR_2: RGB8 = RGB8 { r: 0, g: 16, b: 48 };
 
 const SUSTAIN_DURATION: u32 = 1000;
 const FADE_DURATION: u32 = 1000;
@@ -93,8 +93,8 @@ impl PixelAnimation for OctaveKeyPressAnimation {
     fn compute(data: u32, duration: u32) -> RGB8 {
         keypress_compute(
             OCTAVE_STRIKE_COLOR,
-            OCTAVE_SUSTAIN_COLOR_1,
-            OCTAVE_SUSTAIN_COLOR_2,
+            OCTAVE_SELECTED_COLOR_1,
+            OCTAVE_SELECTED_COLOR_2,
             data,
             duration,
         )
@@ -106,19 +106,15 @@ pub struct SelectedOctaveAnimation {}
 impl PixelAnimation for SelectedOctaveAnimation {
     fn compute(data: u32, duration: u32) -> RGB8 {
         if duration < SUSTAIN_DURATION {
-            let percent = min(100, (duration / 10) as u8);
-
-            let previousColor = RGB8::deserialize(data);
-
-            let color = previousColor.fade(OCTAVE_SELECTED_COLOR_1, percent);
+            let color = OCTAVE_SELECTED_COLOR_1;
 
             return color;
         } else {
-            let duration = duration - SUSTAIN_DURATION;
+            let net_duration = duration - SUSTAIN_DURATION;
 
-            let percent = min(100, ((duration % SUSTAIN_DURATION) / 10) as u8);
+            let percent = min(100, ((net_duration % SUSTAIN_DURATION) / 10) as u8);
 
-            let color = if duration / 1000 % 2 == 0 {
+            let color = if net_duration / SUSTAIN_DURATION % 2 == 0 {
                 OCTAVE_SELECTED_COLOR_1.fade(OCTAVE_SELECTED_COLOR_2, percent)
             } else {
                 OCTAVE_SELECTED_COLOR_2.fade(OCTAVE_SELECTED_COLOR_1, percent)
@@ -159,8 +155,9 @@ impl PixelAnimation for KeyRadiantAnimation {
 }
 
 mod test {
-    use crate::{data::*, keystrike_animation::FADE_DURATION};
+    use crate::{data::*, keystrike_animation::{FADE_DURATION, OCTAVE_SELECTED_COLOR_1, SUSTAIN_DURATION}};
     use smart_leds::hsv::RGB8;
+    use super::*;
 
     #[test]
     fn test_fade_animation_at_start() {
@@ -190,5 +187,47 @@ mod test {
         let result = super::KeyFadeAnimation::compute(data, duration);
 
         assert_eq!(result, RGB8 { r: 0, g: 0, b: 0 });
+    }
+
+    #[test]
+    fn test_selected_animation_t0_correct() {
+        let data:u32 = 0;
+        let duration: u32 = 0;
+
+        let result = super::SelectedOctaveAnimation::compute(data, duration);
+
+        assert_eq!(result, OCTAVE_SELECTED_COLOR_1);
+    }
+
+    #[test]
+    fn test_selected_animation_t_sustain_correct() {
+        let data:u32 = 0;
+        let duration: u32 = SUSTAIN_DURATION;
+
+        let result = super::SelectedOctaveAnimation::compute(data, duration);
+
+        assert_eq!(result, OCTAVE_SELECTED_COLOR_1);
+    }
+
+    #[test]
+    fn test_selected_animation_t_2x_sustain_correct() {
+        let data:u32 = 0;
+        let duration: u32 = SUSTAIN_DURATION * 2;
+
+        let result = super::SelectedOctaveAnimation::compute(data, duration);
+
+        assert_eq!(result, OCTAVE_SELECTED_COLOR_2);
+    }
+
+    #[test]
+    fn test_selected_animation_t_1_5x_sustain_correct() {
+        let data:u32 = 0;
+        let duration: u32 = 1500;
+
+        let result = super::SelectedOctaveAnimation::compute(data, duration);
+
+        let expected = OCTAVE_SELECTED_COLOR_1.fade(OCTAVE_SELECTED_COLOR_2, 50);
+
+        assert_eq!(result, expected);
     }
 }

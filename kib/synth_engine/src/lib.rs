@@ -58,7 +58,7 @@ pub struct SynthState {
 
 
 impl SynthState {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             octave: 4,
             note_index_state: [NoteState::Off; NUM_NOTES],

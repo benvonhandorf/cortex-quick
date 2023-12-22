@@ -139,6 +139,7 @@ impl PixelHelpers for RGB8 {
     }
 }
 
+#[inline(never)]
 pub fn adjacency_recursion(previous_index: u8, index: u8, recurse_level: u8, callback: &mut impl FnMut(u8, u8))
 {
     for i in 0..6 {
@@ -198,7 +199,7 @@ mod test {
     }
 
     // use std::vec::Vec;
-    
+
     // #[test]
     // fn test_adjacency_recursion_for_18_calls_8_9_17_19() {
     //     let mut calls: Vec<(u8, u8)> = Vec::new();

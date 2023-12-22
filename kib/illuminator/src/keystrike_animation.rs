@@ -14,23 +14,23 @@ const OCTAVE_STRIKE_COLOR: RGB8 = RGB8 {
 // const OCTAVE_SUSTAIN_COLOR_2: RGB8 = RGB8 { r: 0, g: 16, b: 48 };
 
 pub const OCTAVE_SELECTED_COLOR_1: RGB8 = RGB8 { r: 0, g: 0, b: 32 };
-pub const OCTAVE_SELECTED_COLOR_2: RGB8 = RGB8 { r: 0, g: 16, b: 48 };
+pub const OCTAVE_SELECTED_COLOR_2: RGB8 = RGB8 { r: 16, g: 16, b: 48 };
 
 const SUSTAIN_DURATION: u32 = 1000;
 const FADE_DURATION: u32 = 1000;
 
 const NEIGHBOR_COLORS: [RGB8; 3] = [
-    RGB8 {
-        r: 128,
-        g: 255,
-        b: 219,
-    },
+    RGB8 { r: 17, g: 64, b: 4 },
     RGB8 {
         r: 239,
         g: 64,
         b: 161,
     },
-    RGB8 { r: 17, g: 64, b: 4 },
+    RGB8 {
+        r: 128,
+        g: 255,
+        b: 219,
+    },
 ];
 
 const NEIGHBOR_COLORS_SUSTAIN: [RGB8; 3] = [
@@ -147,10 +147,11 @@ pub struct KeyRadiantAnimation {}
 impl PixelAnimation for KeyRadiantAnimation {
     fn compute(data: u32, duration: u32) -> RGB8 {
         let radius = data;
-        let percent = min(100, (duration / 10) as u8);
-        let original_color = RGB8::deserialize(data);
 
-        original_color.fade(RGB8::default(), percent)
+        match radius {
+            0..=2 => NEIGHBOR_COLORS[radius as usize],
+            _ => RGB8::default(),
+        }
     }
 }
 

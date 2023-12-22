@@ -118,7 +118,7 @@ impl Illuminator for KeystrikeIlluminator {
                         adjacency_recursion(
                             255,
                             key_index as u8,
-                            2,
+                            1,
                             &mut |index, recurse_level| {
                                 let neighbor_data = &mut self.key_data[index as usize];
 
@@ -152,7 +152,7 @@ impl Illuminator for KeystrikeIlluminator {
                         adjacency_recursion(
                             255,
                             key_index as u8,
-                            2,
+                            1,
                             &mut |index, recurse_level| {
                                 let neighbor_data = &mut self.key_data[index as usize];
 
@@ -179,7 +179,7 @@ impl Illuminator for KeystrikeIlluminator {
                         adjacency_recursion(
                             255,
                             key_index as u8,
-                            2,
+                            1,
                             &mut |index, recurse_level| {
                                 let neighbor_data = &mut self.key_data[index as usize];
 

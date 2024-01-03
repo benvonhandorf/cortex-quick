@@ -10,26 +10,13 @@
       "preLaunchTask": "${defaultBuildTask}",
       "type": "probe-rs-debug",
       "request": "launch",
-      "name": "probe_rs Executable Test",
-      //!MODIFY
-      "chip": "ATSAMD10D13AM",
-      "coreConfigs": [
-        {
-          //!MODIFY
-          "programBinary": "${workspaceFolder}/firmware/target/thumbv6m-none-eabi/debug/kib_bringup",
-        }
-      ]
-    },
-    {
-      "preLaunchTask": "${defaultBuildTask}",
-      "type": "probe-rs-debug",
-      "request": "launch",
       "name": "comms-firmware Executable Test",
       //!MODIFY
       "chip": "ATSAMD10D13AM",
       "coreConfigs": [
         {
-          "programBinary": "${workspaceFolder}/comms-firmware/target/thumbv6m-none-eabi/debug/comms-firmware",
+          //!MODIFY
+          "programBinary": "${workspaceFolder}/target/thumbv6m-none-eabi/debug/comms-firmware",
         }
       ]
     }

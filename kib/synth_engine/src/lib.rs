@@ -28,10 +28,12 @@ impl NoteState {
 }
 
 impl NoteState {
+    #[inline(never)]
     pub fn is_active(&self) -> bool {
         matches!(self, NoteState::Pressed | NoteState::Sustain | NoteState::Release)
     }
 
+    #[inline(never)]
     fn activate(&self) -> NoteState {
         match self {
             NoteState::Off => NoteState::Pressed,
@@ -41,6 +43,7 @@ impl NoteState {
         }
     }
 
+    #[inline(never)]
     fn deactivate(&self) -> NoteState {
         match self {
             NoteState::Off => NoteState::Off,
@@ -54,6 +57,7 @@ impl NoteState {
 pub struct SynthState { 
     pub octave: u8, // 1 - 8
     pub note_index_state: [NoteState; NUM_NOTES], // Tuning from C1 to C9 (extra C in octave 8).  Requires MIDI_NOTE_OFFSET to be accurate midi note value.
+    pub dirty: bool,
 }
 
 
@@ -62,6 +66,7 @@ impl SynthState {
         Self {
             octave: 4,
             note_index_state: [NoteState::Off; NUM_NOTES],
+            dirty: false,
         }
     }
     
@@ -126,6 +131,7 @@ impl SynthState {
         note_index
     }
 
+    #[inline(never)]
     pub fn note_index_to_midi(&self, note_index: u8) -> u8 {
         let octave_offset = (self.octave + 1) * 12;
         let midi_note = MIDI_NOTE_OFFSET + octave_offset + note_index;
@@ -133,14 +139,32 @@ impl SynthState {
         midi_note
     }
 
-    fn activate_note_index(&mut self, note_index: u8) {
+    #[inline(never)]
+    fn activate_note_index(&mut self, note_index: u8) -> bool {
         let note_index = note_index as usize;
-        self.note_index_state[note_index] = self.note_index_state[note_index].activate();
+        let new_state = self.note_index_state[note_index].activate();
+        if self.note_index_state[note_index] != new_state {
+            self.note_index_state[note_index] = new_state;
+            self.dirty = true;
+
+            true
+        } else {
+            false
+        }
     }
 
-    fn deactivate_note_index(&mut self, note_index: u8) {
+    #[inline(never)]
+    fn deactivate_note_index(&mut self, note_index: u8) -> bool {
         let note_index = note_index as usize;
-        self.note_index_state[note_index] = self.note_index_state[note_index].deactivate();
+        let new_state = self.note_index_state[note_index].deactivate();
+        if self.note_index_state[note_index] != new_state {
+            self.note_index_state[note_index] = new_state;
+            self.dirty = true;
+
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -156,10 +180,14 @@ impl SynthEngine {
     }
 
     pub fn update(&mut self, keyboard_state: &KeyboardState) {
+        self.state.dirty = false;
+
         // Update Octave
         for i in 0..8 {
-            if keyboard_state.pressed[i] {
+        if keyboard_state.pressed[i] && self.state.octave != i as u8 + 1 {
                 self.state.octave = i as u8 + 1;
+
+                self.state.dirty = true;
             }
         }
 
@@ -168,7 +196,8 @@ impl SynthEngine {
             if octave != self.state.octave {
                 for i in 0..12 {
                     let note_index = SynthState::octave_note_offset_to_note_index(octave, i);
-                    self.state.deactivate_note_index(note_index);
+
+                    self.state.dirty = self.state.deactivate_note_index(note_index) || self.state.dirty;
                 }
             }
         }
@@ -178,9 +207,9 @@ impl SynthEngine {
             let note_index = self.state.index_to_note_index(i);
 
             if keyboard_state.state[i as usize] {
-                self.state.activate_note_index(note_index);
+                self.state.dirty = self.state.activate_note_index(note_index) || self.state.dirty;
             } else {
-                self.state.deactivate_note_index(note_index);
+                self.state.dirty = self.state.deactivate_note_index(note_index) || self.state.dirty;
             }
         }
     }

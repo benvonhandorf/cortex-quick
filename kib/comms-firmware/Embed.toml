@@ -1,0 +1,5 @@
+[default.general]
+chip = "ATSAMD10D13AM"
+
+[default.rtt]
+enabled = true

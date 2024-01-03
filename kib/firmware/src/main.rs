@@ -40,19 +40,19 @@ static mut output_pin: Option<
 
 use hal::sercom::i2c;
 
-// #[interrupt]
-// fn SERCOM0() {
-//     unsafe {
-//         output_pin.as_mut().unwrap().toggle().ok();
+#[interrupt]
+fn SERCOM0() {
+    unsafe {
+        output_pin.as_mut().unwrap().toggle().ok();
 
-//         // let i2cs = SERCOM0::ptr()
-//         //     .as_ref()
-//         //     .unwrap()
-//         //     .i2cs();
+        // let i2cs = SERCOM0::ptr()
+        //     .as_ref()
+        //     .unwrap()
+        //     .i2cs();
 
-//         // i2cs.intflag.write(|w| w.error().clear_bit());
-//     }
-// }
+        // i2cs.intflag.write(|w| w.error().clear_bit());
+    }
+}
 
 #[entry]
 fn main() -> ! {
@@ -117,12 +117,6 @@ fn main() -> ! {
     let delta_t_ms = 3;
 
     loop {
-        if i2c.write(0x20, &[0x00]).is_err() {
-            unsafe {
-                output_pin.as_mut().unwrap().toggle().ok();
-            }
-        }
-
         let keystate = keyboard_matrix.scan(&mut delay);
 
         // Update Synth Engine state
@@ -135,6 +129,25 @@ fn main() -> ! {
         illuminator.update(delta_t_ms, &keystate, &synth_engine.state);
 
         illuminator.render();
+
+        if synth_engine.state.dirty {
+            let mut data = [0u8; 4];
+            let mut i = 0;
+
+            for note_index in 0..synth_engine::NUM_NOTES {
+                if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Pressed {
+                    data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8);
+                } else if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Release {
+                    data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8) | 0x80;
+                }
+            }
+
+            if i2c.write(0x20, &data).is_err() {
+                unsafe {
+                    output_pin.as_mut().unwrap().toggle().ok();
+                }
+            }
+        }
     }
 }
 

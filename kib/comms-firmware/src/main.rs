@@ -51,6 +51,10 @@ static mut INFO: Option<u32> = None;
 
 #[interrupt]
 fn SERCOM0() {
+    unsafe {
+        output_pin.as_mut().unwrap().toggle().ok();
+    }
+
     interrupt_helpers::free(|cs| unsafe {
         if let Some(sercom0) = SERCOM_REF.borrow(cs).borrow_mut().as_mut() {
             let i2cs0 = sercom0.i2cs();
@@ -58,11 +62,8 @@ fn SERCOM0() {
             let intflag = i2cs0.intflag.read();
             let status = i2cs0.status.read();
 
-            INFO = Some(intflag.bits().into());
-
             if intflag.amatch().bit_is_set() {
-                // rprintln!("Address Match - {}", status.dir().bit_is_set());
-                i2cs0.intenset.write(|w| w.amatch().clear_bit());
+                rprintln!("Address Match - {}", status.dir().bit_is_set());
 
                 i2cs0.intflag.write(|w| w.amatch().set_bit());
             }
@@ -70,25 +71,31 @@ fn SERCOM0() {
             if intflag.drdy().bit_is_set() {
                 let data = i2cs0.data.read().bits();
 
-                // rprintln!("Data Ready: {:x}", data);
+                INFO = Some(data.into());
 
-                i2cs0.intflag.write(|w| w.drdy().set_bit());
+                rprintln!("Data Ready: {:#04x}", data);
+
+                // i2cs0.intflag.write(|w| w.drdy().set_bit());
             }
 
             if intflag.prec().bit_is_set() {
-                // rprintln!("Stop Received");
+                rprintln!("Stop Received");
 
                 i2cs0.intflag.write(|w| w.prec().set_bit());
             }
 
             if intflag.error().bit_is_set() {
-                // rprintln!("Error");
+                rprintln!(
+                    "Error: {} {} {} {}",
+                    status.sexttout().bit_is_set(),
+                    status.lowtout().bit_is_set(),
+                    status.coll().bit_is_set(),
+                    status.buserr().bit_is_set(),
+                );
 
                 i2cs0.intflag.write(|w| w.error().set_bit());
             }
         }
-
-        output_pin.as_mut().unwrap().toggle().ok();
     });
 }
 
@@ -100,6 +107,8 @@ fn configure_sercom0(sercom0: &mut pac::SERCOM0) {
             w.mode().i2c_slave();
             w.lowtouten().set_bit();
             w.speed().bits(0x00);
+            // w.sclsm().set_bit();
+            // w.sdahold().bits(0x01);
         }
         w
     });
@@ -107,8 +116,8 @@ fn configure_sercom0(sercom0: &mut pac::SERCOM0) {
     i2cs0.ctrlb.write(|w| {
         unsafe {
             w.amode().bits(0x00);
-            w.aacken().set_bit();
-            w.smen().set_bit();
+            // w.aacken().set_bit(); //Setting this prevents the AMATCH interrupt from firing
+            w.smen().set_bit(); //Setting this causes data to be acked when read
         }
         w
     });
@@ -117,7 +126,7 @@ fn configure_sercom0(sercom0: &mut pac::SERCOM0) {
         unsafe {
             w.tenbiten().clear_bit();
             w.addr().bits(ADDRESS.into());
-            w.addrmask().bits(0x7F);
+            w.addrmask().bits(0x00); //Set bits are ignored for address matching
             w.gencen().clear_bit();
         }
         w
@@ -158,7 +167,7 @@ fn main() -> ! {
     rprintln!("Starting configuration");
 
     //Configure I2C
-    // let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
+    let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
     let pads = i2c::Pads::new(pins.sda, pins.scl);
 
     let mut sercom0 = peripherals.SERCOM0;
@@ -188,7 +197,7 @@ fn main() -> ! {
 
         interrupt_helpers::free(|cs| unsafe {
             if let Some(info) = INFO {
-                rprintln!("Info: {}", info);
+                rprintln!("Info: {:#04x}", info);
             }
         });
 

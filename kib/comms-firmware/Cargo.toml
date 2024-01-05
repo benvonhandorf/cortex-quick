@@ -26,6 +26,8 @@ atsamd-hal = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsa
 samd10_bare = { git = "https://github.com/benvonhandorf/atsamd.git", branch="atsamd10d" }
 more-asserts = "0.3.1"
 
+comms = { path = "../comms" }
+
 
 
 

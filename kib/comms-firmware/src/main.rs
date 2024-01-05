@@ -33,6 +33,8 @@ use rtt_target::rprintln;
 
 use rtt_target::rtt_init_print;
 
+use comms::BusStatus;
+
 static mut output_pin: Option<
     hal::gpio::Pin<hal::gpio::PA16, hal::gpio::Output<hal::gpio::PushPull>>,
 > = None;
@@ -47,6 +49,9 @@ static SERCOM_REF: interrupt_helpers::Mutex<RefCell<Option<pac::SERCOM0>>> =
 // static SERCOM_REF: RefCell<Option<pac::SERCOM0>> = RefCell::new(None);
 // static SERCOM_REF: Option<&mut pac::SERCOM0> = None;
 
+static BUS_STATUS: interrupt_helpers::Mutex<RefCell<Option<BusStatus>>> =
+    interrupt_helpers::Mutex::new(RefCell::new(None));
+
 static mut INFO: Option<u32> = None;
 
 #[interrupt]
@@ -57,43 +62,48 @@ fn SERCOM0() {
 
     interrupt_helpers::free(|cs| unsafe {
         if let Some(sercom0) = SERCOM_REF.borrow(cs).borrow_mut().as_mut() {
-            let i2cs0 = sercom0.i2cs();
+            if let Some(bus_status) = BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
+                let i2cs0 = sercom0.i2cs();
 
-            let intflag = i2cs0.intflag.read();
-            let status = i2cs0.status.read();
+                let intflag = i2cs0.intflag.read();
+                let status = i2cs0.status.read();
 
-            if intflag.amatch().bit_is_set() {
-                rprintln!("Address Match - {}", status.dir().bit_is_set());
+                if intflag.amatch().bit_is_set() {
+                    bus_status.addr(status.dir().bit_is_set());
 
-                i2cs0.intflag.write(|w| w.amatch().set_bit());
-            }
+                    i2cs0.intflag.write(|w| w.amatch().set_bit());
+                }
 
-            if intflag.drdy().bit_is_set() {
-                let data = i2cs0.data.read().bits();
+                if intflag.drdy().bit_is_set() {
+                    if bus_status.is_reading() {
+                        if let data = bus_status.read_data().unwrap() {
+                            //Assign the next data byte, await an ACK (for more data) or NAC/Stop.
+                            i2cs0.data.write(|w| w.data().bits(data));
 
-                INFO = Some(data.into());
+                            i2cs0.ctrlb.write(|w| w.cmd().bits(0x3));
+                        } else {
+                            //No more data to transmit.  Wait for a S/Sr.
+                            i2cs0.ctrlb.write(|w| w.cmd().bits(0x2));
+                        }                        
+                    } else {
+                        //Reading the data clears the interrupt
+                        let data = i2cs0.data.read().bits();
 
-                rprintln!("Data Ready: {:#04x}", data);
+                        bus_status.write_data(data);
+                    }
 
-                // i2cs0.intflag.write(|w| w.drdy().set_bit());
-            }
+                    // i2cs0.intflag.write(|w| w.drdy().set_bit());
+                }
 
-            if intflag.prec().bit_is_set() {
-                rprintln!("Stop Received");
+                if intflag.prec().bit_is_set() {
+                    i2cs0.intflag.write(|w| w.prec().set_bit());
 
-                i2cs0.intflag.write(|w| w.prec().set_bit());
-            }
+                    bus_status.stop();
+                }
 
-            if intflag.error().bit_is_set() {
-                rprintln!(
-                    "Error: {} {} {} {}",
-                    status.sexttout().bit_is_set(),
-                    status.lowtout().bit_is_set(),
-                    status.coll().bit_is_set(),
-                    status.buserr().bit_is_set(),
-                );
-
-                i2cs0.intflag.write(|w| w.error().set_bit());
+                if intflag.error().bit_is_set() {
+                    i2cs0.intflag.write(|w| w.error().set_bit());
+                }
             }
         }
     });
@@ -170,6 +180,8 @@ fn main() -> ! {
     let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
     let pads = i2c::Pads::new(pins.sda, pins.scl);
 
+    let mut comms_status = BusStatus::new();
+
     let mut sercom0 = peripherals.SERCOM0;
 
     sercom0.enable_apb_clock(&peripherals.PM);
@@ -177,6 +189,7 @@ fn main() -> ! {
     configure_sercom0(&mut sercom0);
 
     interrupt_helpers::free(|cs| {
+        BUS_STATUS.borrow(cs).replace(Some(comms_status));
         SERCOM_REF.borrow(cs).replace(Some(sercom0));
     });
 
@@ -193,20 +206,13 @@ fn main() -> ! {
     let delta_t_ms = 3;
 
     loop {
-        cortex_m::asm::wfi();
-
         interrupt_helpers::free(|cs| unsafe {
-            if let Some(info) = INFO {
-                rprintln!("Info: {:#04x}", info);
+            if let Some(comms_status) = BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
+                if let Some(command) = comms_status.process() {
+                    rprintln!("Command: {} Reg: {:#04x} data: {:#04x} {:#04x} {:#04x}", command.read_direction, command.register, command.data[0], command.data[1], command.data[2]);
+                }
             }
         });
 
-        // let mut status: Option<u32> = None;
-        // interrupt_helpers::free(|cs| unsafe {
-        //     if let Some(sercom0) = SERCOM_REF.borrow(cs).borrow_mut().as_mut() {
-        //         let i2cs0 = sercom0.i2cs();
-
-        //     }
-        // });
     }
 }

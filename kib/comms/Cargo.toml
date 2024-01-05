@@ -1,0 +1,16 @@
+[package]
+edition = "2021"
+name = "comms"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-hal = {version = "0.2.7", features = ["unproven"]}
+keyboard_matrix = {path = "../keyboard_matrix"}
+synth_engine = {path = "../synth_engine"}
+smart-leds = "0.3.0"
+rtt-target = { version = "0.4.0" }
+
+[dev-dependencies]
+more-asserts = "0.3.1"

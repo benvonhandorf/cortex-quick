@@ -3,6 +3,7 @@
 
 mod kib_board;
 mod i2c_peripheral;
+// mod ws2812_custom;
 
 use core::borrow::Borrow;
 
@@ -30,6 +31,7 @@ use hal::timer::*;
 use hal::sercom::i2c;
 use hal::sercom::Sercom;
 
+// use ws2812_custom as ws2812;
 use ws2812_timer_delay as ws2812;
 
 use keyboard_matrix::KeyboardMatrix;
@@ -96,16 +98,16 @@ fn main() -> ! {
     );
 
     let mut led_timer = TimerCounter::tc1_(tc12, peripherals.TC1, &mut peripherals.PM);
-    led_timer.start(MegaHertz::MHz(3).into_duration());
+    led_timer.start(MegaHertz::MHz(7).into_duration());
 
-    let mut led_data_pin = pins.int.into_push_pull_output();
+    let mut led_data_pin = pins.led_data.into_push_pull_output();
     led_data_pin.set_drive_strength(true);
 
     let mut led_strand = ws2812::Ws2812::new(led_timer, led_data_pin);
 
     let mut illuminator = IlluminationEngine::new(&mut led_strand);
 
-    let delta_t_ms = 3;
+    let delta_t_ms = 1;
 
     loop {
         // interrupt_helpers::free(|cs| unsafe {
@@ -121,48 +123,8 @@ fn main() -> ! {
         // Update Synth Engine state
         synth_engine.update(&keystate);
 
-        // print_synthengine(&synth_engine);
-
-        // print_keystate(&keystate);
-
         illuminator.update(delta_t_ms, &keystate, &synth_engine.state);
 
         illuminator.render();
-
-        // if synth_engine.state.dirty {
-        //     let mut data = [0u8; 4];
-        //     let mut i = 0;
-
-        //     for note_index in 0..synth_engine::NUM_NOTES {
-        //         if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Pressed {
-        //             data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8);
-        //         } else if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Release {
-        //             data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8) | 0x80;
-        //         }
-        //     }
-        // }
     }
 }
-
-// fn print_keystate(keystate: &keyboard_matrix::KeyboardState) {
-//     if keystate.pressed_count > 0 || keystate.released_count > 0 {
-//         rprint!("Keys {}: ", keystate.depressed_count);
-//         for i in 0..21 {
-//             if keystate.state[i] {
-//                 rprint!("{} ", i);
-//             }
-//         }
-
-//         rprintln!("");
-//     }
-// }
-
-// fn print_synthengine(synth_engine: &synth_engine::SynthEngine) {
-// rprintln!("Octave: {}", synth_engine.state.octave);
-
-// for note_index in 0..synth_engine::NUM_NOTES {
-//     if synth_engine.state.note_index_state[note_index] != synth_engine::NoteState::Off {
-//         rprintln!("Note: {} {}", synth_engine.state.note_index_to_midi(note_index as u8), synth_engine.state.note_index_state[note_index].to_int());
-//     }
-// }
-// }

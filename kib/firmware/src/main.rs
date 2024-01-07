@@ -4,6 +4,8 @@
 mod kib_board;
 mod i2c_peripheral;
 
+use core::borrow::Borrow;
+
 #[cfg(not(feature = "use_semihosting"))]
 use panic_halt as _;
 #[cfg(feature = "use_semihosting")]
@@ -28,10 +30,7 @@ use hal::timer::*;
 use hal::sercom::i2c;
 use hal::sercom::Sercom;
 
-// use rtt_target::rprint;
 use ws2812_timer_delay as ws2812;
-
-use rtt_target::rtt_init_print;
 
 use keyboard_matrix::KeyboardMatrix;
 use synth_engine::SynthEngine;
@@ -40,9 +39,11 @@ use illuminator::IlluminationEngine;
 
 use comms::BusStatus;
 
+use rtt_target::{ rtt_init_print, rprintln };
+
 #[entry]
 fn main() -> ! {
-    rtt_init_print!();
+    // rtt_init_print!();
 
     let mut peripherals = Peripherals::take().unwrap();
     let mut core = CorePeripherals::take().unwrap();
@@ -55,31 +56,27 @@ fn main() -> ! {
 
     let gclk0 = clocks.gclk0();
     let tc12 = &clocks.tc1_tc2(&gclk0).unwrap();
-    let mut led_timer = TimerCounter::tc1_(tc12, peripherals.TC1, &mut peripherals.PM);
-    led_timer.start(MegaHertz::MHz(5).into_duration());
 
     let pins = bsp::Pins::new(peripherals.PORT);
 
     //Configure I2C
-    let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
-    let pads = i2c::Pads::new(pins.sda, pins.scl);
+    // let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
+    // let pads = i2c::Pads::new(pins.sda, pins.scl);
 
-    let mut comms_status = BusStatus::new();
+    // let mut sercom0 = peripherals.SERCOM0;
 
-    let mut sercom0 = peripherals.SERCOM0;
+    // sercom0.enable_apb_clock(&peripherals.PM);
 
-    sercom0.enable_apb_clock(&peripherals.PM);
+    // let output_pin = Some(pins.int.into_push_pull_output());
 
-    let output_pin = Some(pins.int.into_push_pull_output());
+    // i2c_peripheral::configure_bus_status(output_pin);
 
-    i2c_peripheral::configure_bus_status(output_pin);
+    // i2c_peripheral::configure_sercom0(sercom0, 0x22);
 
-    i2c_peripheral::configure_sercom0(sercom0, 0x22);
-
-    unsafe {
-        core.NVIC.set_priority(interrupt::SERCOM0, 1);
-        NVIC::unmask(interrupt::SERCOM0);
-    }
+    // unsafe {
+    //     core.NVIC.set_priority(interrupt::SERCOM0, 1);
+    //     NVIC::unmask(interrupt::SERCOM0);
+    // }
 
     let mut delay = Delay::new(core.SYST, &mut clocks);
 
@@ -98,7 +95,10 @@ fn main() -> ! {
         pins.col_q.into_pull_down_input(),
     );
 
-    let mut led_data_pin = pins.led_data.into_push_pull_output();
+    let mut led_timer = TimerCounter::tc1_(tc12, peripherals.TC1, &mut peripherals.PM);
+    led_timer.start(MegaHertz::MHz(3).into_duration());
+
+    let mut led_data_pin = pins.int.into_push_pull_output();
     led_data_pin.set_drive_strength(true);
 
     let mut led_strand = ws2812::Ws2812::new(led_timer, led_data_pin);
@@ -108,13 +108,13 @@ fn main() -> ! {
     let delta_t_ms = 3;
 
     loop {
-        interrupt_helpers::free(|cs| unsafe {
-            if let Some(comms_status) = i2c_peripheral::BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
-                if let Some(command) = comms_status.process() {
+        // interrupt_helpers::free(|cs| unsafe {
+        //     if let Some(comms_status) = i2c_peripheral::BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
+        //         if let Some(command) = comms_status.process() {
 
-                }
-            }
-        });
+        //         }
+        //     }
+        // });
 
         let keystate = keyboard_matrix.scan(&mut delay);
 

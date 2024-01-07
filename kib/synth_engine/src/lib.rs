@@ -179,6 +179,11 @@ impl SynthEngine {
         }
     }
 
+    pub fn set_octave(&mut self, octave: u8) {
+        self.state.octave = octave;
+        self.state.dirty = true;
+    }
+
     pub fn update(&mut self, keyboard_state: &KeyboardState) {
         self.state.dirty = false;
 

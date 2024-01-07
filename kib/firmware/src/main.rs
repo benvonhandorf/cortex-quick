@@ -3,7 +3,7 @@
 
 mod kib_board;
 mod i2c_peripheral;
-// mod ws2812_custom;
+mod protocol;
 
 use core::borrow::Borrow;
 
@@ -31,7 +31,6 @@ use hal::timer::*;
 use hal::sercom::i2c;
 use hal::sercom::Sercom;
 
-// use ws2812_custom as ws2812;
 use ws2812_timer_delay as ws2812;
 
 use keyboard_matrix::KeyboardMatrix;
@@ -62,23 +61,23 @@ fn main() -> ! {
     let pins = bsp::Pins::new(peripherals.PORT);
 
     //Configure I2C
-    // let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
-    // let pads = i2c::Pads::new(pins.sda, pins.scl);
+    let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
+    let pads = i2c::Pads::new(pins.sda, pins.scl);
 
-    // let mut sercom0 = peripherals.SERCOM0;
+    let mut sercom0 = peripherals.SERCOM0;
 
-    // sercom0.enable_apb_clock(&peripherals.PM);
+    sercom0.enable_apb_clock(&peripherals.PM);
 
-    // let output_pin = Some(pins.int.into_push_pull_output());
+    let output_pin = Some(pins.int.into_push_pull_output());
 
-    // i2c_peripheral::configure_bus_status(output_pin);
+    i2c_peripheral::configure_bus_status(output_pin);
 
-    // i2c_peripheral::configure_sercom0(sercom0, 0x22);
+    i2c_peripheral::configure_sercom0(sercom0, 0x22);
 
-    // unsafe {
-    //     core.NVIC.set_priority(interrupt::SERCOM0, 1);
-    //     NVIC::unmask(interrupt::SERCOM0);
-    // }
+    unsafe {
+        core.NVIC.set_priority(interrupt::SERCOM0, 1);
+        NVIC::unmask(interrupt::SERCOM0);
+    }
 
     let mut delay = Delay::new(core.SYST, &mut clocks);
 
@@ -105,26 +104,42 @@ fn main() -> ! {
 
     let mut led_strand = ws2812::Ws2812::new(led_timer, led_data_pin);
 
-    let mut illuminator = IlluminationEngine::new(&mut led_strand);
+    let mut illumination_engine = IlluminationEngine::new(&mut led_strand);
 
     let delta_t_ms = 1;
 
-    loop {
-        // interrupt_helpers::free(|cs| unsafe {
-        //     if let Some(comms_status) = i2c_peripheral::BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
-        //         if let Some(command) = comms_status.process() {
+    let mut communication_register : u8 = 0x00;
 
-        //         }
-        //     }
-        // });
+    loop {
+        let command = interrupt_helpers::free(|cs| {
+            if let Some(comms_status) = i2c_peripheral::BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
+                comms_status.process()
+            } else {
+                None
+            }
+        });
+
+        if let Some(command) = command {
+            communication_register = command.register;
+
+            protocol::process_command(&command, &mut synth_engine, &mut illumination_engine);
+        }
 
         let keystate = keyboard_matrix.scan(&mut delay);
 
         // Update Synth Engine state
         synth_engine.update(&keystate);
 
-        illuminator.update(delta_t_ms, &keystate, &synth_engine.state);
+        illumination_engine.update(delta_t_ms, &keystate, &synth_engine.state);
 
-        illuminator.render();
+        illumination_engine.render();
+
+        if let Some((register_data, data_size)) = protocol::build_response(communication_register, &synth_engine, &illumination_engine) {
+            interrupt_helpers::free(|cs| {
+                if let Some(comms_status) = i2c_peripheral::BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
+                    comms_status.provide_data(communication_register, &register_data, data_size)
+                }
+            });
+        }
     }
 }

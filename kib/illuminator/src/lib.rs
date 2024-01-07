@@ -16,8 +16,6 @@ use synth_engine::SynthState;
 
 use smart_leds::{hsv::RGB8, SmartLedsWrite};
 
-use rtt_target::rprintln;
-
 pub struct IlluminationEngine<'a, StrandType> {
     led_strand: &'a mut StrandType,
     led_data: [RGB8; 21],

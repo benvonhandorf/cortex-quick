@@ -2,7 +2,7 @@
 #![no_main]
 
 mod kib_board;
-// mod comms;
+mod i2c_peripheral;
 
 #[cfg(not(feature = "use_semihosting"))]
 use panic_halt as _;
@@ -15,6 +15,8 @@ use bsp::entry;
 use bsp::hal;
 use bsp::pac;
 
+use cortex_m::interrupt as interrupt_helpers;
+use cortex_m::peripheral::NVIC;
 use pac::interrupt;
 use pac::{CorePeripherals, Peripherals};
 
@@ -23,6 +25,8 @@ use hal::delay::Delay;
 use hal::prelude::*;
 use hal::time::*;
 use hal::timer::*;
+use hal::sercom::i2c;
+use hal::sercom::Sercom;
 
 // use rtt_target::rprint;
 use ws2812_timer_delay as ws2812;
@@ -34,32 +38,14 @@ use synth_engine::SynthEngine;
 
 use illuminator::IlluminationEngine;
 
-static mut output_pin: Option<
-    hal::gpio::Pin<hal::gpio::PA16, hal::gpio::Output<hal::gpio::PushPull>>,
-> = None;
-
-use hal::sercom::i2c;
-
-#[interrupt]
-fn SERCOM0() {
-    unsafe {
-        output_pin.as_mut().unwrap().toggle().ok();
-
-        // let i2cs = SERCOM0::ptr()
-        //     .as_ref()
-        //     .unwrap()
-        //     .i2cs();
-
-        // i2cs.intflag.write(|w| w.error().clear_bit());
-    }
-}
+use comms::BusStatus;
 
 #[entry]
 fn main() -> ! {
     rtt_init_print!();
 
     let mut peripherals = Peripherals::take().unwrap();
-    let core = CorePeripherals::take().unwrap();
+    let mut core = CorePeripherals::take().unwrap();
     let mut clocks = GenericClockController::with_internal_32kosc(
         peripherals.GCLK,
         &mut peripherals.PM,
@@ -77,17 +63,22 @@ fn main() -> ! {
     //Configure I2C
     let sercom0_clock = &clocks.sercom0_core(&gclk0).unwrap();
     let pads = i2c::Pads::new(pins.sda, pins.scl);
-    let mut i2c = i2c::Config::new(
-        &peripherals.PM,
-        peripherals.SERCOM0,
-        pads,
-        sercom0_clock.freq(),
-    )
-    .baud(100.kHz())
-    .enable();
+
+    let mut comms_status = BusStatus::new();
+
+    let mut sercom0 = peripherals.SERCOM0;
+
+    sercom0.enable_apb_clock(&peripherals.PM);
+
+    let output_pin = Some(pins.int.into_push_pull_output());
+
+    i2c_peripheral::configure_bus_status(output_pin);
+
+    i2c_peripheral::configure_sercom0(sercom0, 0x22);
 
     unsafe {
-        output_pin = Some(pins.int.into_push_pull_output());
+        core.NVIC.set_priority(interrupt::SERCOM0, 1);
+        NVIC::unmask(interrupt::SERCOM0);
     }
 
     let mut delay = Delay::new(core.SYST, &mut clocks);
@@ -117,6 +108,14 @@ fn main() -> ! {
     let delta_t_ms = 3;
 
     loop {
+        interrupt_helpers::free(|cs| unsafe {
+            if let Some(comms_status) = i2c_peripheral::BUS_STATUS.borrow(cs).borrow_mut().as_mut() {
+                if let Some(command) = comms_status.process() {
+
+                }
+            }
+        });
+
         let keystate = keyboard_matrix.scan(&mut delay);
 
         // Update Synth Engine state
@@ -130,24 +129,18 @@ fn main() -> ! {
 
         illuminator.render();
 
-        if synth_engine.state.dirty {
-            let mut data = [0u8; 4];
-            let mut i = 0;
+        // if synth_engine.state.dirty {
+        //     let mut data = [0u8; 4];
+        //     let mut i = 0;
 
-            for note_index in 0..synth_engine::NUM_NOTES {
-                if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Pressed {
-                    data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8);
-                } else if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Release {
-                    data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8) | 0x80;
-                }
-            }
-
-            if i2c.write(0x20, &data).is_err() {
-                unsafe {
-                    output_pin.as_mut().unwrap().toggle().ok();
-                }
-            }
-        }
+        //     for note_index in 0..synth_engine::NUM_NOTES {
+        //         if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Pressed {
+        //             data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8);
+        //         } else if synth_engine.state.note_index_state[i] == synth_engine::NoteState::Release {
+        //             data[i + 1] = synth_engine.state.note_index_to_midi(note_index as u8) | 0x80;
+        //         }
+        //     }
+        // }
     }
 }
 

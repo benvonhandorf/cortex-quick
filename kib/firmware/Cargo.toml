@@ -31,6 +31,7 @@ more-asserts = "0.3.1"
 keyboard_matrix = { path = "../keyboard_matrix" }
 illuminator = { path = "../illuminator" }
 synth_engine = { path = "../synth_engine" }
+comms = { path = "../comms" }
 
 
 [features]
@@ -57,7 +58,7 @@ default = ["atsamd-hal/samd10d", "atsamd-hal/samd10d-rt", "atsamd-hal/unproven"]
 # bench = false
 
 [profile.dev]
-opt-level = "z"
+opt-level = "s"
 codegen-units = 1 # better optimizations
 debug = true # symbols are nice and they don't increase the size on Flash
 lto = "fat" # better optimizations

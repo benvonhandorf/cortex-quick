@@ -14,6 +14,7 @@ pub struct BusStatus {
     data_index: usize,
     data_size: usize,
     command: Option<BusCommand>,
+    stopped: bool,
 }
 
 impl BusStatus {
@@ -25,13 +26,17 @@ impl BusStatus {
             data_index: 0,
             data_size: 0,
             command: None,
+            stopped: true,
         }
     }
 
     pub fn addr(&mut self, read_direction: bool) {
-        //Build a command for the previous operation
-        self.build_command();
+        if !self.stopped {
+            //Build a command for the previous operation
+            self.build_command();
+        }
 
+        self.stopped = false;
         self.read_direction = read_direction;
         self.data_index = 0;
 
@@ -58,19 +63,21 @@ impl BusStatus {
         }
     }
 
-    pub fn read_data(&mut self) -> Option<u8> {
+    pub fn read_data(&mut self) -> u8 {
+        //TODO: Decide what to do here.  If the central is reading data we need to return something.
         if self.data_index < self.data_size {
             let result = self.data[self.data_index];
             self.data_index += 1;
 
-            Some(result)
+            result
         } else {
-            None
+            0xFF
         }
     }
 
     pub fn stop(&mut self) {
         self.build_command();
+        self.stopped = true;
     }
 
     fn build_command(&mut self) {
@@ -93,7 +100,7 @@ impl BusStatus {
         result
     }
 
-    pub fn provide_data(&mut self, register: u8, data: &[u8;20], data_size: usize) {
+    pub fn provide_data(&mut self, register: u8, data: &[u8; 20], data_size: usize) {
         if Some(register) == self.last_register {
             self.data[..20].copy_from_slice(data);
             self.data_size = data_size;
@@ -164,6 +171,9 @@ mod test {
 
         let result = status.process();
         assert!(result.is_some(), "Should have processed command");
+
+        let result = status.process();
+        assert!(result.is_none(), "Should have no more commands");
     }
 
     #[test]
@@ -184,6 +194,36 @@ mod test {
         );
         assert_eq!(result.data_size, 0);
         assert_eq!(result.register, 0x12);
+
+        let result = status.process();
+        assert!(result.is_none(), "Should have no more commands");
+    }
+
+
+    #[test]
+    fn write_with_stop_then_read_only_gives_one_command() {
+        let mut status = super::BusStatus::new();
+
+        status.addr(false);
+
+        assert!(status.write_data(0x12));
+
+        status.stop();
+
+        let result = status.process();
+        assert!(result.is_some(), "Should have processed command");
+        let result = result.unwrap();
+        assert_eq!(
+            result.read_direction, false,
+            "Should have read direction set"
+        );
+        assert_eq!(result.data_size, 0);
+        assert_eq!(result.register, 0x12);
+
+        status.addr(true);
+
+        let result = status.process();
+        assert!(result.is_none(), "Should have no more commands");
     }
 
     #[test]
@@ -217,7 +257,7 @@ mod test {
 
     #[test]
     fn unsatisfied_write_command_followed_by_read_returns_no_data() {
-        const REGISTER : u8 = 0x12;
+        const REGISTER: u8 = 0x12;
 
         let mut status = super::BusStatus::new();
 
@@ -243,21 +283,20 @@ mod test {
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, None, "Should not have data byte");
+        assert_eq!(data_byte, 0xFF, "Should not have data byte");
     }
 
     #[test]
     fn satisfied_write_command_followed_by_read_returns_correct_data() {
-
-        let mut register_data : [u8;20] = [0;20];
-        const SRC_DATA : [u8;5] = [0x12, 0x34, 0x56, 0x78, 0x9A];
+        let mut register_data: [u8; 20] = [0; 20];
+        const SRC_DATA: [u8; 5] = [0x12, 0x34, 0x56, 0x78, 0x9A];
 
         register_data[..5].copy_from_slice(&SRC_DATA);
 
         let register_data_size = 5;
         let register_data: [u8; 20] = register_data;
 
-        const REGISTER : u8 = 0x12;
+        const REGISTER: u8 = 0x12;
 
         let mut status = super::BusStatus::new();
 
@@ -285,40 +324,40 @@ mod test {
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, Some(0x12), "Should have data byte");
+        assert_eq!(data_byte, 0x12, "Should have data byte");
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, Some(0x34), "Should have data byte");
+        assert_eq!(data_byte, 0x34, "Should have data byte");
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, Some(0x56), "Should have data byte");
+        assert_eq!(data_byte, 0x56, "Should have data byte");
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, Some(0x78), "Should have data byte");
+        assert_eq!(data_byte, 0x78, "Should have data byte");
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, Some(0x9A), "Should have data byte");
+        assert_eq!(data_byte, 0x9A, "Should have data byte");
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, None, "Should have no more data bytes");
+        assert_eq!(data_byte, 0xFF, "Should have no more data bytes");
     }
 
     #[test]
     fn satisfied_data_for_wrong_register_followed_by_read_returns_no_data() {
-        let mut register_data : [u8;20] = [0;20];
-        const SRC_DATA : [u8;5] = [0x12, 0x34, 0x56, 0x78, 0x9A];
+        let mut register_data: [u8; 20] = [0; 20];
+        const SRC_DATA: [u8; 5] = [0x12, 0x34, 0x56, 0x78, 0x9A];
 
         register_data[..5].copy_from_slice(&SRC_DATA);
 
         let register_data_size = 5;
         let register_data: [u8; 20] = register_data;
 
-        const REGISTER : u8 = 0x12;
+        const REGISTER: u8 = 0x12;
 
         let mut status = super::BusStatus::new();
 
@@ -346,21 +385,20 @@ mod test {
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte,  None, "Should have no more data bytes");
+        assert_eq!(data_byte, 0xFF, "Should have no more data bytes");
     }
 
     #[test]
     fn satisfied_write_command_then_another_write_then_read_returns_no_data() {
-
-        let mut register_data : [u8;20] = [0;20];
-        const SRC_DATA : [u8;5] = [0x12, 0x34, 0x56, 0x78, 0x9A];
+        let mut register_data: [u8; 20] = [0; 20];
+        const SRC_DATA: [u8; 5] = [0x12, 0x34, 0x56, 0x78, 0x9A];
 
         register_data[..5].copy_from_slice(&SRC_DATA);
 
         let register_data_size = 5;
         let register_data: [u8; 20] = register_data;
 
-        const REGISTER : u8 = 0x12;
+        const REGISTER: u8 = 0x12;
 
         let mut status = super::BusStatus::new();
 
@@ -399,6 +437,6 @@ mod test {
 
         let data_byte = status.read_data();
 
-        assert_eq!(data_byte, None, "Should have no more data bytes");
+        assert_eq!(data_byte, 0xFF, "Should have no more data bytes");
     }
 }
